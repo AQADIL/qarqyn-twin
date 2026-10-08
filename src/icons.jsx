@@ -61,6 +61,18 @@ export function Icon({ name, size = 22, ...props }) {
     close: <path d="m6 6 12 12M6 18 18 6" />,
     menu: <path d="M3 6h18M3 12h18M3 18h18" />,
     plus: <path d="M12 4v16M4 12h16" />,
+    copy: (
+      <>
+        <rect x="8" y="8" width="12" height="13" rx="2" />
+        <path d="M15 8V3H3v13h5" />
+      </>
+    ),
+    search: (
+      <>
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m15.5 15.5 5 5" />
+      </>
+    ),
     download: <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />,
     logout: <path d="M10 3H4v18h6m-1-9h12m-5-5 5 5-5 5" />,
     edit: (

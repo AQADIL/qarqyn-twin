@@ -173,6 +173,70 @@ test('incident create, update, search and delete persist real API records', asyn
   await expect(card).not.toBeVisible();
 });
 
+test('assistant composer focuses after session loading, resizes and resets failed conversations', async ({
+  page
+}) => {
+  await login(page);
+  let releaseSession;
+  const sessionReady = new Promise((resolve) => {
+    releaseSession = resolve;
+  });
+  await page.route('**/api/session', async (route) => {
+    const response = await route.fetch();
+    const session = await response.json();
+    await sessionReady;
+    await route.fulfill({ response, json: { ...session, aiAvailable: true } });
+  });
+  let interceptedRequests = 0;
+  const syntheticFailure = 'Synthetic browser test: AI provider unavailable.';
+  await page.route('**/api/assistant/stream', async (route) => {
+    interceptedRequests += 1;
+    await route.fulfill({ status: 503, json: { error: syntheticFailure } });
+  });
+  const input = page.getByLabel('Сообщение помощнику', { exact: true });
+  try {
+    await navigate(page, 'Помощник AI');
+    await expect(input).toBeVisible();
+    await expect(input).toBeDisabled();
+    await expect(input).not.toBeFocused();
+  } finally {
+    releaseSession();
+  }
+  await expect(input).toBeEnabled();
+  await expect(input).toBeFocused();
+  const compactHeight = await input.evaluate((element) => element.getBoundingClientRect().height);
+  await input.fill(Array.from({ length: 12 }, (_, index) => `Test line ${index + 1}`).join('\n'));
+  await expect(
+    page.getByRole('button', { name: 'Отправить сообщение', exact: true })
+  ).toBeEnabled();
+  await expect
+    .poll(() => input.evaluate((element) => element.getBoundingClientRect().height))
+    .toBeGreaterThan(compactHeight * 2);
+  expect(
+    await input.evaluate((element) => element.getBoundingClientRect().height)
+  ).toBeLessThanOrEqual(180);
+  await input.fill('');
+  await expect(
+    page.getByRole('button', { name: 'Отправить сообщение', exact: true })
+  ).toBeDisabled();
+  await expect
+    .poll(() => input.evaluate((element) => element.getBoundingClientRect().height))
+    .toBe(compactHeight);
+  await input.fill('Synthetic browser test question');
+  await page.getByRole('button', { name: 'Отправить сообщение', exact: true }).click();
+  await expect.poll(() => interceptedRequests).toBe(1);
+  await expect(page.getByRole('alert')).toContainText(syntheticFailure);
+  await expect(page.getByRole('button', { name: 'Новый', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Диалоги', exact: true }).click();
+  await expect(page.getByLabel('Поиск по истории диалогов')).toBeVisible();
+  await page.getByRole('button', { name: 'Новый', exact: true }).click();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue('');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByLabel('Поиск по истории диалогов')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Что разберём в производстве?' })).toBeVisible();
+});
+
 test('pilot uses observed data and unconfigured AI clearly disables sending', async ({ page }) => {
   await login(page);
   await navigate(page, /^Риски и эффект/);

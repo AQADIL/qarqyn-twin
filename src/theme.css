@@ -458,7 +458,7 @@ body {
   background: #171717;
   color: var(--ink);
 }
-[data-theme='dark'] .button:hover {
+[data-theme='dark'] .button:not(:disabled):hover {
   background: #292929;
   border-color: #898989;
 }
@@ -467,8 +467,16 @@ body {
   color: #18140f;
   border-color: #e6c49b;
 }
-[data-theme='dark'] .button.primary:hover {
+[data-theme='dark'] .button.primary:not(:disabled):hover {
   background: #f2ddbe;
+}
+[data-theme='dark'] .button.quiet {
+  background: transparent;
+  border-color: var(--line);
+}
+[data-theme='dark'] .button.quiet:not(:disabled):hover {
+  background: #1c1c1c;
+  border-color: #686868;
 }
 [data-theme='dark'] .button.danger {
   background: #442a32;
@@ -653,6 +661,7 @@ body {
   background: #080808;
 }
 [data-theme='dark'] .chat-composer {
+  --orbit-color: #d8b47e;
   background: #171717;
   border-color: #62625c;
 }

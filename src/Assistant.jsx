@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { api, apiStream, format } from './api.js';
 import { Brand, Icon } from './icons.jsx';
 import {
@@ -43,6 +43,45 @@ function turnsFrom(messages = []) {
       };
     });
 }
+function useMotionVisibility(ref) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    let intersecting = false;
+    const update = () => setVisible(intersecting && !document.hidden);
+    const observer = new IntersectionObserver(([entry]) => {
+      intersecting = entry.isIntersecting;
+      update();
+    });
+    observer.observe(element);
+    document.addEventListener('visibilitychange', update);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', update);
+    };
+  }, [ref]);
+  return visible;
+}
+function Thinking() {
+  const element = useRef(null);
+  const visible = useMotionVisibility(element);
+  return (
+    <div className="chat-thinking" role="status" ref={element} data-motion={visible}>
+      <span className="chat-thinking-pulse" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
+      <span>
+        Готовлю ответ по вашим данным
+        <span className="chat-thinking-ellipsis" aria-hidden="true">
+          …
+        </span>
+      </span>
+    </div>
+  );
+}
 function Conversation({ analysis, canWrite, userId }) {
   const storageKey = `qarqyn:conversation:${userId}:${analysis.datasetId}`;
   const [selectedId, setSelectedId] = useState(() => sessionStorage.getItem(storageKey) || '');
@@ -67,8 +106,11 @@ function Conversation({ analysis, canWrite, userId }) {
   );
   const controller = useRef(null),
     textarea = useRef(null),
+    composer = useRef(null),
+    initialFocus = useRef(true),
     active = useRef(true),
     activeId = useRef(selectedId);
+  const composerVisible = useMotionVisibility(composer);
   const enabled = Boolean(session.data?.aiAvailable && canWrite);
   activeId.current = selectedId;
   useEffect(() => {
@@ -86,7 +128,6 @@ function Conversation({ analysis, canWrite, userId }) {
       return;
     }
     const abort = new AbortController();
-    setError('');
     setThreadLoading(true);
     api(`/conversations/${selectedId}`, 'GET', undefined, abort.signal)
       .then((value) => {
@@ -103,13 +144,38 @@ function Conversation({ analysis, canWrite, userId }) {
       });
     return () => abort.abort();
   }, [selectedId, storageKey]);
+  const resizeQuestion = useCallback(() => {
+    const input = textarea.current;
+    if (!input) return;
+    input.style.height = '0px';
+    input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
+  }, []);
+  useLayoutEffect(resizeQuestion, [question, resizeQuestion]);
   useEffect(() => {
-    if (!textarea.current) return;
-    textarea.current.style.height = 'auto';
-    textarea.current.style.height = `${Math.min(textarea.current.scrollHeight, 180)}px`;
-  }, [question]);
+    const input = textarea.current;
+    if (!input) return;
+    let width = input.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (input.clientWidth === width) return;
+      width = input.clientWidth;
+      resizeQuestion();
+    });
+    observer.observe(input);
+    return () => observer.disconnect();
+  }, [resizeQuestion]);
   const storedTurns = turnsFrom(thread?.messages);
   const processing = busy || storedTurns.some((turn) => turn.pending);
+  useEffect(() => {
+    if (!initialFocus.current || !enabled || threadLoading || processing) return;
+    if (selectedId && thread?.id !== selectedId) return;
+    textarea.current?.focus();
+    initialFocus.current = false;
+  }, [enabled, threadLoading, processing, selectedId, thread?.id]);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(''), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
   useEffect(() => setPage(1), [search]);
   useEffect(() => {
     if (!selectedId || !storedTurns.some((turn) => turn.pending)) return;
@@ -233,7 +299,7 @@ function Conversation({ analysis, canWrite, userId }) {
     }
   }
   return (
-    <section className="qarqyn-chat persistent-chat">
+    <section className={`qarqyn-chat persistent-chat${messages.length ? ' has-conversation' : ''}`}>
       <div className="chat-toolbar">
         <Button
           tone="quiet"
@@ -251,10 +317,14 @@ function Conversation({ analysis, canWrite, userId }) {
           icon="plus"
           disabled={processing}
           onClick={() => {
+            initialFocus.current = true;
             setSelectedId('');
             setThread(null);
             setQuestion('');
             setPending(null);
+            setError('');
+            setHistoryOpen(false);
+            textarea.current?.focus({ preventScroll: true });
           }}
         >
           Новый
@@ -288,6 +358,7 @@ function Conversation({ analysis, canWrite, userId }) {
                   className="chat-history-title"
                   aria-current={item.id === selectedId ? 'true' : undefined}
                   onClick={() => {
+                    setError('');
                     setSelectedId(item.id);
                     setThread(null);
                     setHistoryOpen(false);
@@ -344,12 +415,7 @@ function Conversation({ analysis, canWrite, userId }) {
                   <Brand compact />
                   <span>QARQYN</span>
                 </header>
-                {message.pending && (
-                  <div className="chat-thinking" role="status">
-                    <span className="chat-thinking-line" />
-                    Проверяю данные и расчёты…
-                  </div>
-                )}
+                {message.pending && <Thinking />}
                 {message.cancelled && <p role="status">Запрос остановлен. Вопрос сохранён.</p>}
                 {message.error && <ErrorBox>{message.error}</ErrorBox>}
                 {message.answer && (
@@ -361,16 +427,26 @@ function Conversation({ analysis, canWrite, userId }) {
                       onSources={(ids) => showSources(ids, message.answer.datasetVersion)}
                     />
                     <div className="chat-answer-actions">
-                      <button className="text-button" onClick={() => copyAnswer(message)}>
-                        {copied === message.id ? 'Скопировано' : 'Копировать ответ'}
+                      <button
+                        className={`icon-button chat-answer-action${copied === message.id ? ' is-copied' : ''}`}
+                        aria-label="Копировать ответ"
+                        title={copied === message.id ? 'Скопировано' : 'Копировать ответ'}
+                        onClick={() => copyAnswer(message)}
+                      >
+                        <Icon name={copied === message.id ? 'check' : 'copy'} size={19} />
                       </button>
                       <button
-                        className="text-button"
+                        className="icon-button chat-answer-action"
+                        aria-label="Проверить по текущим данным"
+                        title="Проверить по текущим данным"
                         disabled={processing || !enabled || threadLoading}
                         onClick={() => ask(message.question)}
                       >
-                        Проверить по текущим данным
+                        <Icon name="search" size={20} />
                       </button>
+                      <span className="chat-sr-only" role="status">
+                        {copied === message.id ? 'Ответ скопирован' : ''}
+                      </span>
                     </div>
                   </>
                 )}
@@ -389,12 +465,19 @@ function Conversation({ analysis, canWrite, userId }) {
       )}
       <div className="chat-compose-area">
         <form
-          className="chat-composer"
+          ref={composer}
+          className={`chat-composer${processing ? ' is-processing' : ''}`}
+          data-motion={composerVisible}
           onSubmit={(event) => {
             event.preventDefault();
             ask(question);
           }}
         >
+          <svg className="chat-composer-orbit" aria-hidden="true" focusable="false">
+            <rect className="orbit-tail" width="100%" height="100%" rx="27" pathLength="100" />
+            <rect className="orbit-trail" width="100%" height="100%" rx="27" pathLength="100" />
+            <rect className="orbit-head" width="100%" height="100%" rx="27" pathLength="100" />
+          </svg>
           <label className="chat-sr-only" htmlFor="assistant-question">
             Сообщение помощнику
           </label>
@@ -403,10 +486,10 @@ function Conversation({ analysis, canWrite, userId }) {
             id="assistant-question"
             name="question"
             maxLength={1200}
-            rows={2}
+            rows={1}
             value={question}
             disabled={!enabled}
-            placeholder="Спросите о данных или предложите изменение…"
+            placeholder="Спросите о производстве…"
             onChange={(event) => setQuestion(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -415,27 +498,33 @@ function Conversation({ analysis, canWrite, userId }) {
               }
             }}
           />
-          <div className="chat-composer-bottom">
-            <span>
-              <Icon name="source" size={15} />
-              По текущим данным
-            </span>
-            {processing ? (
-              <Button type="button" tone="quiet" onClick={stop}>
-                Остановить
-              </Button>
-            ) : (
-              <button
-                type="submit"
-                className="chat-send"
-                disabled={!enabled || threadLoading || question.trim().length < 3}
-                aria-label="Отправить сообщение"
-              >
-                <Icon name="arrow" size={22} />
-              </button>
-            )}
-          </div>
+          {processing ? (
+            <button
+              type="button"
+              className="chat-send chat-stop"
+              onClick={stop}
+              aria-label="Остановить ответ"
+              title="Остановить ответ"
+            >
+              <span aria-hidden="true" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="chat-send"
+              disabled={!enabled || threadLoading || question.trim().length < 3}
+              aria-label="Отправить сообщение"
+            >
+              <Icon name="arrow" size={22} />
+            </button>
+          )}
         </form>
+        {enabled && (
+          <p className="chat-composer-context">
+            <Icon name="source" size={13} />
+            По текущим данным
+          </p>
+        )}
         {!canWrite ? (
           <p className="chat-compose-hint">
             Для диалога войдите в учётную запись с доступом к помощнику.

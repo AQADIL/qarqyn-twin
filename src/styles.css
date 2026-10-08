@@ -208,8 +208,6 @@ hr {
 .button.quiet {
   border-color: transparent;
   background: transparent;
-  padding-left: 0;
-  padding-right: 0;
 }
 .text-button {
   border: 0;
