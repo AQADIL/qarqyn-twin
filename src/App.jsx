@@ -351,10 +351,8 @@ export default function App() {
                 <Icon name={icon} />
                 <span>{label}</span>
                 {key === 'incidents' && a && <small>{a.findings.length}</small>}
-                {(key === 'decisions' ||
-                  key === 'target' ||
-                  (key === 'assistant' && session.aiAvailable && canWrite)) && (
-                  <small className="feature-new">NEW</small>
+                {(key === 'decisions' || key === 'target' || key === 'assistant') && (
+                  <small className="feature-new">{key === 'assistant' ? 'AI' : 'NEW'}</small>
                 )}
               </a>
             ))}
