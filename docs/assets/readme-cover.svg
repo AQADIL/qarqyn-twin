@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="350" viewBox="0 0 1200 350" role="img" aria-labelledby="title desc">
+  <title id="title">QARQYN — почувствуйте ритм завода</title>
+  <desc id="desc">Фирменная обложка: производственный поток проходит через ограничение и продолжается к решению. Чёрный фон, серебристые линии, тёплый золотой акцент.</desc>
+  <rect width="1200" height="350" fill="#080909"/>
+  <g fill="#c4c3b8" opacity=".45">
+    <circle cx="825" cy="51" r="1.5"/><circle cx="1107" cy="91" r="1"/><circle cx="997" cy="32" r="1"/>
+    <circle cx="918" cy="283" r="1.5"/><circle cx="1137" cy="275" r="1"/><circle cx="729" cy="309" r="1"/>
+  </g>
+  <path d="M55 70V38h32v32H55m20-12 22 22" fill="none" stroke="#e7d9bd" stroke-width="7"/>
+  <text x="117" y="69" fill="#f3f0e8" font-family="Arial,sans-serif" font-size="37" font-weight="700" letter-spacing="9">QARQYN</text>
+  <text x="54" y="159" fill="#f3f0e8" font-family="Arial,sans-serif" font-size="43" font-weight="700">Почувствуйте</text>
+  <text x="54" y="211" fill="#f3f0e8" font-family="Arial,sans-serif" font-size="43" font-weight="700">ритм завода.</text>
+  <text x="56" y="256" fill="#aaa99f" font-family="Arial,sans-serif" font-size="18">От исходной записи до проверяемого решения.</text>
+  <text x="56" y="318" fill="#d5b890" font-family="Arial,sans-serif" font-size="11" letter-spacing="3">ALLUR / CASE 02 / ASTANA IT UNIVERSITY</text>
+  <g fill="none" stroke-width="1.5">
+    <path d="M690 109h105l71 59h264M690 144h90l75 38h275M690 180h440M690 216h90l75-20h275M690 251h105l71-41h264" stroke="#53564e"/>
+    <path d="M690 180h161l15 16h264" stroke="#d5b890" stroke-width="3"/>
+    <path d="M867 110v124M939 142v90M1037 142v90" stroke="#33372f" stroke-dasharray="3 7"/>
+  </g>
+  <g fill="#080909" stroke="#c5ad88" stroke-width="2">
+    <circle cx="700" cy="180" r="7"/><circle cx="867" cy="196" r="7"/><circle cx="1037" cy="196" r="7"/><circle cx="1125" cy="196" r="7"/>
+  </g>
+  <g fill="#aaa99f" font-family="Arial,sans-serif" font-size="12" letter-spacing="1">
+    <text x="688" y="87">ДАННЫЕ</text><text x="836" y="264">ПЛАН</text><text x="1000" y="264">ПРОВЕРКА</text>
+  </g>
+  <path d="M0 349h1200" stroke="#3c3b32"/>
+</svg>
