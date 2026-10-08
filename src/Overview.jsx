@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { Icon } from './icons.jsx';
 import { Button } from './ui.jsx';
 import { format } from './api.js';
+import { stageImage, stageIcon } from './stage-assets.js';
 
 export default function Overview({ analysis: a, evidence, navigate }) {
   const [selected, select] = useState('painting');
@@ -63,7 +64,7 @@ export default function Overview({ analysis: a, evidence, navigate }) {
                   </strong>
                 </span>
                 <motion.img
-                  src={`/stage-${s.id}.png`}
+                  src={stageImage(s.id)}
                   alt=""
                   width="1024"
                   height="1024"
@@ -114,7 +115,7 @@ export default function Overview({ analysis: a, evidence, navigate }) {
                 <span className="eyebrow">
                   УЧАСТОК / {String(a.stages.indexOf(stage) + 1).padStart(2, '0')}
                 </span>
-                <Icon name={stage.id} size={38} />
+                <Icon name={stageIcon(stage.id)} size={38} />
               </div>
               <h2>{stage.name}</h2>
               {stage.observations ? (

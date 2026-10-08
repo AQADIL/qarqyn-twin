@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, format } from './api.js';
 import { Button, Field, ErrorBox, Loading, Modal, Confirm, Empty, useResource } from './ui.jsx';
 import { Icon } from './icons.jsx';
@@ -20,6 +20,12 @@ export default function Lab({ analysis, canWrite, notify }) {
   const [suggestions, setSuggestions] = useState(null),
     [optimizing, setOptimizing] = useState(false);
   const saved = useResource(`/scenarios?datasetId=${analysis.datasetId}`, revision);
+  const recommendationKey = `${analysis.datasetId}:${analysis.version}:${input.hours}:${input.observationHours}`;
+  const currentRecommendationKey = useRef(recommendationKey);
+  currentRecommendationKey.current = recommendationKey;
+  useEffect(() => {
+    setSuggestions(null);
+  }, [analysis.version]);
   useEffect(() => {
     let ignore = false;
     const controller = new AbortController();
@@ -47,7 +53,7 @@ export default function Lab({ analysis, canWrite, notify }) {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [input]);
+  }, [input, analysis.version]);
   function change(stageId, key, value) {
     setInput((old) => {
       const item = old.interventions.find((x) => x.stageId === stageId) || {
@@ -65,18 +71,18 @@ export default function Lab({ analysis, canWrite, notify }) {
     });
   }
   async function recommend() {
+    const requestKey = currentRecommendationKey.current;
     setOptimizing(true);
     setError('');
     try {
-      setSuggestions(
-        await api('/optimize', 'POST', {
-          datasetId: input.datasetId,
-          hours: input.hours,
-          observationHours: input.observationHours
-        })
-      );
+      const options = await api('/optimize', 'POST', {
+        datasetId: input.datasetId,
+        hours: input.hours,
+        observationHours: input.observationHours
+      });
+      if (requestKey === currentRecommendationKey.current) setSuggestions(options);
     } catch (e) {
-      setError(e.message);
+      if (requestKey === currentRecommendationKey.current) setError(e.message);
     } finally {
       setOptimizing(false);
     }
@@ -127,7 +133,8 @@ export default function Lab({ analysis, canWrite, notify }) {
           </div>
           {stages.map((s) => {
             const edit = input.interventions.find((x) => x.stageId === s.id);
-            const max = s.downtimeMinutes / s.observations;
+            const limit = analysis.recoveryLimits?.find((item) => item.stageId === s.id);
+            const max = limit?.maxMinutes ?? 0;
             return (
               <div className="intervention" key={s.id}>
                 <h3>
@@ -140,13 +147,18 @@ export default function Lab({ analysis, canWrite, notify }) {
                       Вернуть время <b>{format(edit?.recoverMinutes || 0, 1)} мин</b>
                     </span>
                   }
-                  hint={`Из ${format(max, 1)} мин простоя на исходный период`}
+                  hint={
+                    limit
+                      ? `Доступно ${format(max, 1)} мин на период${limit.excludedPlannedMinutes ? `; плановое ТО ${format(limit.excludedPlannedMinutes, 1)} мин защищено` : ''}`
+                      : 'Обновите данные для получения доступного времени'
+                  }
                 >
                   <input
                     aria-label={`${s.name}: вернуть минуты простоя`}
                     type="range"
                     min="0"
                     max={max}
+                    disabled={max === 0}
                     step="0.5"
                     value={edit?.recoverMinutes || 0}
                     onChange={(e) => change(s.id, 'recoverMinutes', Number(e.target.value))}
@@ -226,8 +238,10 @@ export default function Lab({ analysis, canWrite, notify }) {
                   <Button
                     tone="primary"
                     icon="plus"
-                    disabled={!canWrite || busy}
-                    onClick={() => setSaving({ input })}
+                    disabled={!canWrite || busy || result.datasetVersion !== analysis.version}
+                    onClick={() =>
+                      setSaving({ input, expectedDatasetVersion: result.datasetVersion })
+                    }
                   >
                     Сохранить сценарий
                   </Button>
@@ -253,8 +267,8 @@ export default function Lab({ analysis, canWrite, notify }) {
                 <section className="sensitivity">
                   <h3>Где находится резерв</h3>
                   <p>
-                    Дополнительный поток при устранении всех наблюдаемых потерь одного участка, с
-                    учётом текущих изменений.
+                    Дополнительный поток при восстановлении доступного времени и нулевом браке
+                    одного участка. Плановое ТО сохраняется; это верхняя граница модели.
                   </p>
                   {result.sensitivity.map((s) => (
                     <div key={s.stageId}>
@@ -376,7 +390,7 @@ export default function Lab({ analysis, canWrite, notify }) {
                 <button
                   className="icon-button"
                   aria-label={`Изменить ${s.name}`}
-                  onClick={() => setSaving(s)}
+                  onClick={() => setSaving({ ...s, expectedDatasetVersion: analysis.version })}
                 >
                   <Icon name="edit" />
                 </button>
@@ -435,7 +449,12 @@ function SaveScenario({ item, onSave, onClose }) {
           e.preventDefault();
           setBusy(true);
           try {
-            const data = { name, note, input: item.input };
+            const data = {
+              name,
+              note,
+              input: item.input,
+              expectedDatasetVersion: item.expectedDatasetVersion
+            };
             await api(
               item.id ? `/scenarios/${item.id}` : '/scenarios',
               item.id ? 'PUT' : 'POST',

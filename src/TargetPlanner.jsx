@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, format } from './api.js';
 import { Button, Field, ErrorBox, Loading } from './ui.jsx';
 import { Icon } from './icons.jsx';
 import './target-planner.css';
+import { stageImage } from './stage-assets.js';
 
 export default function TargetPlanner({ analysis, canWrite, notify, evidence, navigate }) {
   const [hours, setHours] = useState(8);
@@ -14,10 +15,17 @@ export default function TargetPlanner({ analysis, canWrite, notify, evidence, na
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const calculation = useRef(null);
+  const contextKey = `${analysis.datasetId}:${analysis.version}:${hours}:${observationHours}:${target}`;
+  const currentContext = useRef(contextKey);
+  currentContext.current = contextKey;
   useEffect(() => {
     const controller = new AbortController();
+    calculation.current?.abort();
+    setBusy(false);
     setBaseline(null);
     setPlan(null);
+    setSaved(false);
     setError('');
     api(
       '/simulate',
@@ -33,42 +41,55 @@ export default function TargetPlanner({ analysis, canWrite, notify, evidence, na
       .catch((e) => {
         if (!controller.signal.aborted) setError(e.message);
       });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      calculation.current?.abort();
+    };
   }, [analysis.datasetId, analysis.version, hours, observationHours]);
   async function calculate(event) {
     event.preventDefault();
+    calculation.current?.abort();
+    const controller = new AbortController();
+    calculation.current = controller;
+    const requestKey = currentContext.current;
     setBusy(true);
     setError('');
     setPlan(null);
     setSaved(false);
     try {
-      setPlan(
-        await api('/plan-target', 'POST', {
+      const result = await api(
+        '/plan-target',
+        'POST',
+        {
           datasetId: analysis.datasetId,
           hours,
           observationHours,
           targetGoodOutput: Number(target)
-        })
+        },
+        controller.signal
       );
+      if (!controller.signal.aborted && requestKey === currentContext.current) setPlan(result);
     } catch (e) {
-      setError(e.message);
+      if (!controller.signal.aborted && requestKey === currentContext.current) setError(e.message);
     } finally {
-      setBusy(false);
+      if (!controller.signal.aborted && requestKey === currentContext.current) setBusy(false);
     }
   }
   async function save() {
+    const requestKey = currentContext.current;
     setSaving(true);
     setError('');
     try {
       await api('/scenarios', 'POST', {
         name: `Цель ${format(plan.targetGoodOutput, 1)} за ${hours} ч`,
         note: 'Обратное планирование. Минимальные восстановления простоев в последовательной модели. Качество неизменно, явно указанное плановое ТО исключено. Перед применением нужна проверка инженером.',
-        input: plan.input
+        input: plan.input,
+        expectedDatasetVersion: plan.datasetVersion
       });
-      setSaved(true);
+      if (requestKey === currentContext.current) setSaved(true);
       notify('План сохранён в сценариях');
     } catch (e) {
-      setError(e.message);
+      if (requestKey === currentContext.current) setError(e.message);
     } finally {
       setSaving(false);
     }
@@ -179,7 +200,7 @@ export default function TargetPlanner({ analysis, canWrite, notify, evidence, na
                   <div className="target-actions">
                     {plan.interventions.map((item) => (
                       <article key={item.stageId}>
-                        <img src={`/stage-${item.stageId}.png`} alt="" width="1280" height="1280" />
+                        <img src={stageImage(item.stageId)} alt="" width="1280" height="1280" />
                         <div>
                           <h4>{item.name}</h4>
                           <p>

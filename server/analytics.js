@@ -13,6 +13,29 @@ export function wilson(defects, count) {
   return [Math.max(0, center - half), Math.min(1, center + half)].map((x) => round(x * 100, 3));
 }
 
+export function recoveryLimits(data, stages = analyze(data).stages) {
+  return stages
+    .filter((stage) => stage.kind === 'production')
+    .map((stage) => {
+      const excluded = data.downtime.filter(
+        (row) =>
+          row.stageId === stage.id &&
+          row.reason.trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru-RU') === 'плановое то'
+      );
+      const observedMinutes = stage.observations ? stage.downtimeMinutes / stage.observations : 0;
+      const excludedPlannedMinutes = stage.observations
+        ? sum(excluded, 'minutes') / stage.observations
+        : 0;
+      return {
+        stageId: stage.id,
+        observedMinutes,
+        maxMinutes: Math.min(480, Math.max(0, observedMinutes - excludedPlannedMinutes)),
+        excludedPlannedMinutes,
+        excludedSourceIds: excluded.map((row) => row.id)
+      };
+    });
+}
+
 export function analyze(data, date = null) {
   const filter = (rows) => (date ? rows.filter((r) => r.date === date) : rows);
   const production = filter(data.production),
@@ -119,6 +142,7 @@ export function analyze(data, date = null) {
     dates: [...new Set(data.production.map((r) => r.date))].sort(),
     date,
     stages,
+    recoveryLimits: recoveryLimits(data, stages),
     findings,
     warnings,
     totals: {
@@ -181,8 +205,13 @@ function throughput(stages, hours, interventions, qualityBound, observationHours
 
 export function simulate(data, input) {
   const a = analyze(data),
-    stages = a.stages.filter((s) => s.kind === 'production' && s.rate !== null);
-  if (!stages.length) throw new Error('Нет производственных наблюдений');
+    stages = a.stages.filter((s) => s.kind === 'production');
+  if (!stages.length || stages.some((s) => s.rate === null || s.defectPct === null))
+    fail(
+      422,
+      'Для расчёта потока нужны наблюдения выпуска, времени работы и качества каждого производственного участка. Отсутствующее качество нельзя считать нулевым браком.'
+    );
+  const limits = recoveryLimits(data, stages);
   for (const change of input.interventions) {
     const stage = stages.find((s) => s.id === change.stageId);
     if (!stage) {
@@ -190,8 +219,13 @@ export function simulate(data, input) {
       e.status = 422;
       throw e;
     }
-    if (change.recoverMinutes > stage.downtimeMinutes / stage.observations + 0.01) {
-      const e = new Error('Восстановленное время превышает наблюдаемый простой на период');
+    if (
+      change.recoverMinutes >
+      limits.find((limit) => limit.stageId === stage.id).maxMinutes + 1e-9
+    ) {
+      const e = new Error(
+        'Восстановленное время превышает доступный простой после исключения планового ТО'
+      );
       e.status = 422;
       throw e;
     }
@@ -205,26 +239,31 @@ export function simulate(data, input) {
   const sensitivity = stages
     .map((s) => {
       const alt = input.interventions.filter((x) => x.stageId !== s.id);
-      alt.push({ stageId: s.id, recoverMinutes: s.downtimeMinutes / s.observations, defectPct: 0 });
+      alt.push({
+        stageId: s.id,
+        recoverMinutes: limits.find((limit) => limit.stageId === s.id).maxMinutes,
+        defectPct: 0
+      });
       return { stageId: s.id, name: s.name, headroom: round(calc(alt).output - scenario.output) };
     })
     .sort((a, b) => b.headroom - a.headroom);
   return {
-    model: 'Последовательная модель потока v1',
+    model: 'Последовательная модель потока v2',
     baseline,
     scenario,
     delta: round(scenario.output - baseline.output),
     sensitivity,
     range: [low, high],
+    recoveryLimits: limits,
     assumptions: [
       `Расчётный период одной исходной строки принят равным ${input.observationHours ?? 8} часам. Это допущение, а не установленный режим завода.`,
       'Скорость участка = суммарный выпуск / суммарное время работы. Исторические простои нормируются на число наблюдений.',
       'Сумма простоев отдельных машин условно используется как потеря времени участка. Одновременность остановок и фактический простой всей линии неизвестны; возможен двойной учёт времени. Эффект восстановления требует проверки инженером.',
-      'Плановое ТО входит в исходные простои. Сценарий полного восстановления является верхней границей сравнения и не означает рекомендацию отменить обслуживание.',
+      'Явно указанное «Плановое ТО» остаётся в базовом простое и исключается из доступного восстановления. Устранимость других причин должен подтвердить инженер.',
       'Годный поток = min(входящий поток, производственная ёмкость) × (1 − доля брака). Начальные запасы, передел и транспортные задержки не учитываются.',
       'Это стационарная сценарная модель без разгона линии, а не прогноз отказов или обещание реального прироста.',
       'Диапазон отражает чувствительность к 95% интервалам Уилсона для исторической доли брака. Это не доверительный интервал выпуска. Заданный целевой брак считается фиксированным.',
-      'При отсутствии данных качества модель условно принимает 0% брака. Проверьте полноту данных перед применением.'
+      'Расчёт доступен только при наличии наблюдений качества каждого производственного участка. Полноту и сопоставимость периодов должен подтвердить инженер.'
     ],
     evidence: stages.map((s) => ({
       stageId: s.id,
@@ -238,6 +277,7 @@ export function simulate(data, input) {
 
 export function optimize(data, hours, observationHours = 8) {
   const stages = analyze(data).stages.filter((s) => s.kind === 'production' && s.rate !== null);
+  const limits = recoveryLimits(data, stages);
   return stages
     .map((s) => {
       const input = {
@@ -247,7 +287,7 @@ export function optimize(data, hours, observationHours = 8) {
         interventions: [
           {
             stageId: s.id,
-            recoverMinutes: round(s.downtimeMinutes / s.observations, 4),
+            recoverMinutes: limits.find((limit) => limit.stageId === s.id).maxMinutes,
             defectPct: Math.min(s.defectPct ?? 0, data.targets.maxDefectPct)
           }
         ]
@@ -260,7 +300,7 @@ export function optimize(data, hours, observationHours = 8) {
         delta: result.delta,
         output: result.scenario.output,
         detail:
-          'Верхняя граница: условно восстановить наблюдаемый простой оборудования и довести брак до порога. Плановое ТО не следует отменять; допустимое восстановление и влияние на линию должен проверить инженер.'
+          'Условно восстановить доступный простой после исключения планового ТО и довести брак до порога. Допустимость восстановления и влияние на линию должен проверить инженер.'
       };
     })
     .sort((a, b) => b.delta - a.delta);
@@ -280,23 +320,19 @@ export function planTarget(data, request) {
     );
   const periodMinutes = input.observationHours * 60;
   let downstreamYield = 1;
+  const limits = recoveryLimits(data, stages);
   const constraints = stages.map((s) => {
-    const downtime = data.downtime.filter((r) => r.stageId === s.id);
-    const excluded = downtime.filter(
-      (r) => r.reason.trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru-RU') === 'плановое то'
-    );
-    const observedMinutes = s.downtimeMinutes / s.observations;
-    const excludedPlannedMinutes = sum(excluded, 'minutes') / s.observations;
+    const limit = limits.find((item) => item.stageId === s.id);
     return {
       stageId: s.id,
       name: s.name,
       rate: s.rate,
       defectPct: s.defectPct,
-      observedMinutes,
-      availableMinutes: Math.min(480, Math.max(0, observedMinutes - excludedPlannedMinutes)),
-      excludedPlannedMinutes,
+      observedMinutes: limit.observedMinutes,
+      availableMinutes: limit.maxMinutes,
+      excludedPlannedMinutes: limit.excludedPlannedMinutes,
       sourceIds: s.sourceIds,
-      excludedSourceIds: excluded.map((r) => r.id)
+      excludedSourceIds: limit.excludedSourceIds
     };
   });
   for (let i = constraints.length - 1; i >= 0; i--) {

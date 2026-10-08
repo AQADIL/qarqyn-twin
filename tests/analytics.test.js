@@ -172,3 +172,37 @@ test('Wilson bounds handle zero counts and all-defective samples', () => {
   assert.equal(wilson(0, 100)[0], 0);
   assert.equal(wilson(100, 100)[1], 100);
 });
+
+test('every scenario path protects planned maintenance and missing quality stays unknown', () => {
+  const base = { datasetId: 'allur', hours: 8, observationHours: 8, interventions: [] };
+  const analysis = analyze(data);
+  const welding = analysis.recoveryLimits.find((stage) => stage.stageId === 'welding');
+  assert.equal(welding.maxMinutes, 12.5);
+  assert.equal(welding.excludedPlannedMinutes, 15);
+  const safe = simulate(data, {
+    ...base,
+    interventions: [{ stageId: 'welding', recoverMinutes: 12.5, defectPct: null }]
+  });
+  assert.ok(safe.delta > 0);
+  assert.throws(
+    () =>
+      simulate(data, {
+        ...base,
+        interventions: [{ stageId: 'welding', recoverMinutes: 12.51, defectPct: null }]
+      }),
+    /планового ТО/
+  );
+  const recommendation = optimize(data, 8).find((item) => item.stageId === 'welding');
+  assert.equal(recommendation.input.interventions[0].recoverMinutes, 12.5);
+  const missing = structuredClone(data);
+  missing.quality = missing.quality.filter((row) => row.stageId !== 'painting');
+  assert.equal(analyze(missing).stages.find((stage) => stage.id === 'painting').defectPct, null);
+  assert.throws(
+    () => simulate(missing, base),
+    (error) => error.status === 422 && error.message.includes('качества')
+  );
+  assert.throws(
+    () => optimize(missing, 8),
+    (error) => error.status === 422
+  );
+});

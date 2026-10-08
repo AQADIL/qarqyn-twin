@@ -75,8 +75,8 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
       e.target.value = '';
     }
   }
-  async function updateData(data) {
-    await api(`/datasets/${dataset.id}`, 'PUT', { version: dataset.version, data });
+  async function updateData(data, snapshot) {
+    await api(`/datasets/${snapshot.id}`, 'PUT', { version: snapshot.version, data });
     await refresh();
   }
   return (
@@ -121,13 +121,13 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
           </Button>
         ) : (
           <div className="row-actions">
-            <Button disabled={!editable} onClick={() => setSettings(true)}>
+            <Button disabled={!editable} onClick={() => setSettings(dataset)}>
               Параметры
             </Button>
             <button
               className="icon-button"
               disabled={!editable}
-              onClick={() => setDeleteDataset(true)}
+              onClick={() => setDeleteDataset(dataset)}
               aria-label="Удалить набор данных"
             >
               <Icon name="delete" />
@@ -153,7 +153,11 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
       <section id="data-panel" role="tabpanel" aria-labelledby={`tab-${group}`}>
         <div className="section-head">
           <h3>{groups[group]}</h3>
-          <Button disabled={!editable} icon="plus" onClick={() => setRow({ item: {}, index: -1 })}>
+          <Button
+            disabled={!editable}
+            icon="plus"
+            onClick={() => setRow({ item: {}, index: -1, snapshot: dataset })}
+          >
             Добавить запись
           </Button>
         </div>
@@ -185,14 +189,14 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
                         <button
                           className="icon-button"
                           aria-label={`Изменить ${r.id}`}
-                          onClick={() => setRow({ item: r, index })}
+                          onClick={() => setRow({ item: r, index, snapshot: dataset })}
                         >
                           <Icon name="edit" size={18} />
                         </button>
                         <button
                           className="icon-button"
                           aria-label={`Удалить ${r.id}`}
-                          onClick={() => remove({ item: r, index })}
+                          onClick={() => remove({ item: r, index, snapshot: dataset })}
                         >
                           <Icon name="delete" size={18} />
                         </button>
@@ -217,13 +221,13 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
         <RowForm
           group={group}
           row={row}
-          stages={dataset.data.stages}
+          stages={row.snapshot.data.stages}
           onClose={() => setRow(null)}
           onSave={async (item) => {
-            const rows = [...dataset.data[group]];
+            const rows = [...row.snapshot.data[group]];
             if (row.index < 0) rows.push(item);
             else rows[row.index] = item;
-            await updateData({ ...dataset.data, [group]: rows });
+            await updateData({ ...row.snapshot.data, [group]: rows }, row.snapshot);
             setRow(null);
             notify('Запись сохранена');
           }}
@@ -234,10 +238,15 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
           title={`Удалить запись ${deleting.item.id}?`}
           onClose={() => remove(null)}
           onConfirm={async () => {
-            await updateData({
-              ...dataset.data,
-              [group]: dataset.data[group].filter((_, i) => i !== deleting.index)
-            });
+            await updateData(
+              {
+                ...deleting.snapshot.data,
+                [group]: deleting.snapshot.data[group].filter(
+                  (record) => record.id !== deleting.item.id
+                )
+              },
+              deleting.snapshot
+            );
             notify('Запись удалена');
           }}
         >
@@ -250,7 +259,9 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
           title="Удалить рабочий набор?"
           onClose={() => setDeleteDataset(false)}
           onConfirm={async () => {
-            await api(`/datasets/${dataset.id}`, 'DELETE', { version: dataset.version });
+            await api(`/datasets/${deleteDataset.id}`, 'DELETE', {
+              version: deleteDataset.version
+            });
             selectDataset('allur');
             await refresh();
             notify('Рабочий набор удалён');
@@ -261,10 +272,10 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
       )}{' '}
       {settings && (
         <DatasetSettings
-          dataset={dataset}
+          dataset={settings}
           onClose={() => setSettings(false)}
           onSave={async (data) => {
-            await updateData(data);
+            await updateData(data, settings);
             setSettings(false);
             notify('Параметры сохранены');
           }}

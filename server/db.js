@@ -27,13 +27,49 @@ export function openDatabase(path, config) {
     CREATE INDEX IF NOT EXISTS session_expiry ON sessions(expires);
     CREATE INDEX IF NOT EXISTS incident_dataset ON incidents(dataset_id);
     CREATE INDEX IF NOT EXISTS scenario_dataset ON scenarios(dataset_id);`);
-  if (!db.prepare('SELECT id FROM users WHERE username=?').get(config.adminUsername))
+  const owner = db.prepare("SELECT * FROM users WHERE id='owner'").get();
+  const sameUsername = db
+    .prepare('SELECT id FROM users WHERE username=?')
+    .get(config.adminUsername);
+  if (sameUsername && sameUsername.id !== 'owner') {
+    db.close();
+    throw new Error('ADMIN_USERNAME is already assigned to another account.');
+  }
+  if (!owner) {
     db.prepare('INSERT INTO users VALUES (?,?,?,?)').run(
       'owner',
       config.adminUsername,
       hashPassword(config.adminPassword),
       'admin'
     );
+  } else if (
+    owner.username !== config.adminUsername ||
+    !checkPassword(config.adminPassword, owner.password_hash) ||
+    owner.role !== 'admin'
+  ) {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare("UPDATE users SET username=?,password_hash=?,role='admin' WHERE id='owner'").run(
+        config.adminUsername,
+        hashPassword(config.adminPassword)
+      );
+      db.prepare("DELETE FROM sessions WHERE user_id='owner'").run();
+      db.prepare(
+        'INSERT INTO audit(actor,action,entity_id,detail,created_at) VALUES (?,?,?,?,?)'
+      ).run(
+        'system',
+        'owner.credentials_changed',
+        'owner',
+        'Configured owner credentials updated; existing sessions revoked.',
+        new Date().toISOString()
+      );
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      db.close();
+      throw error;
+    }
+  }
   if (!db.prepare('SELECT id FROM datasets WHERE id=?').get('allur')) {
     const source = parse(
       datasetSchema,
