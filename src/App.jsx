@@ -1,23 +1,28 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import { Brand, Icon } from './icons.jsx';
 import { Button, Modal, Field, ErrorBox, Loading, Evidence, useResource } from './ui.jsx';
 import Landing from './Landing.jsx';
 import Overview from './Overview.jsx';
-import Lab from './Lab.jsx';
-import Data from './Data.jsx';
-import Incidents from './Incidents.jsx';
-import Assistant from './Assistant.jsx';
-import TargetPlanner from './TargetPlanner.jsx';
-import DecisionCenter from './DecisionCenter.jsx';
 import { ThemeTools } from './Theme.jsx';
-import Operations from './Operations.jsx';
 import { clearWorkflow } from './workflow.js';
+
+const Lab = lazy(() => import('./Lab.jsx'));
+const Data = lazy(() => import('./Data.jsx'));
+const Incidents = lazy(() => import('./Incidents.jsx'));
+const Assistant = lazy(() => import('./Assistant.jsx'));
+const TargetPlanner = lazy(() => import('./TargetPlanner.jsx'));
+const DecisionCenter = lazy(() => import('./DecisionCenter.jsx'));
+const Operations = lazy(() => import('./Operations.jsx'));
+const FlowLab = lazy(() => import('./FlowLab.jsx'));
+const ActionPlan = lazy(() => import('./ActionPlan.jsx'));
 
 const pages = {
   overview: ['Производство', 'overview'],
   decisions: ['Риски и эффект', 'decisions'],
   target: ['План выпуска', 'target'],
+  actions: ['Мероприятия', 'target'],
+  flow: ['Поток линии', 'lab'],
   lab: ['Сценарии', 'lab'],
   incidents: ['Отклонения', 'incident'],
   data: ['Данные', 'data'],
@@ -351,7 +356,7 @@ export default function App() {
                 <Icon name={icon} />
                 <span>{label}</span>
                 {key === 'incidents' && a && <small>{a.findings.length}</small>}
-                {(key === 'decisions' || key === 'target' || key === 'assistant') && (
+                {['decisions', 'target', 'assistant', 'actions', 'flow'].includes(key) && (
                   <small className="feature-new">{key === 'assistant' ? 'AI' : 'NEW'}</small>
                 )}
               </a>
@@ -466,73 +471,94 @@ export default function App() {
             a &&
             dataset.data && (
               <div key={`${datasetId}:${workflowRevision}`}>
-                {page === 'overview' && (
-                  <Overview
-                    analysis={a}
-                    evidence={(ids) => setEvidence({ ids })}
-                    navigate={navigate}
-                    selectedDate={date}
-                  />
-                )}{' '}
-                {page === 'lab' && (
-                  <Lab
-                    analysis={a}
-                    canWrite={canWrite}
-                    notify={setToast}
-                    selectedDate={date}
-                    userId={session.user.id}
-                  />
-                )}{' '}
-                {page === 'decisions' && (
-                  <DecisionCenter
-                    key={dataset.data.id}
-                    dataset={dataset.data}
-                    notify={setToast}
-                    onEvidence={(ids) => setEvidence({ ids })}
-                    selectedDate={date}
-                    canWrite={canWrite}
-                    userId={session.user.id}
-                  />
-                )}
-                {page === 'target' && (
-                  <TargetPlanner
-                    analysis={a}
-                    canWrite={canWrite}
-                    notify={setToast}
-                    evidence={(ids) => setEvidence({ ids })}
-                    navigate={navigate}
-                    selectedDate={date}
-                  />
-                )}
-                {page === 'data' && (
-                  <Data
-                    dataset={dataset.data}
-                    canWrite={canWrite}
-                    refresh={refresh}
-                    selectDataset={selectDataset}
-                    notify={setToast}
-                  />
-                )}{' '}
-                {page === 'incidents' && (
-                  <Incidents
-                    analysis={a}
-                    canWrite={canWrite}
-                    notify={setToast}
-                    evidence={(ids) => setEvidence({ ids })}
-                  />
-                )}{' '}
-                {page === 'assistant' && (
-                  <Assistant analysis={a} canWrite={canWrite} userId={session.user.id} />
-                )}{' '}
-                {page === 'audit' && session.user.role === 'admin' && <Audit />}
-                {['audit', 'operations'].includes(page) && session.user.role !== 'admin' && (
-                  <p className="notice">
-                    Этот раздел доступен администратору рабочего пространства.
-                  </p>
-                )}
-                {page === 'operations' && session.user.role === 'admin' && (
-                  <Operations notify={setToast} />
-                )}
+                <Suspense fallback={<Loading />}>
+                  {page === 'overview' && (
+                    <Overview
+                      analysis={a}
+                      evidence={(ids) => setEvidence({ ids })}
+                      navigate={navigate}
+                      selectedDate={date}
+                    />
+                  )}{' '}
+                  {page === 'lab' && (
+                    <Lab
+                      analysis={a}
+                      canWrite={canWrite}
+                      notify={setToast}
+                      selectedDate={date}
+                      userId={session.user.id}
+                    />
+                  )}{' '}
+                  {page === 'decisions' && (
+                    <DecisionCenter
+                      key={dataset.data.id}
+                      dataset={dataset.data}
+                      notify={setToast}
+                      onEvidence={(ids) => setEvidence({ ids })}
+                      selectedDate={date}
+                      canWrite={canWrite}
+                      userId={session.user.id}
+                    />
+                  )}
+                  {page === 'target' && (
+                    <TargetPlanner
+                      analysis={a}
+                      canWrite={canWrite}
+                      notify={setToast}
+                      evidence={(ids) => setEvidence({ ids })}
+                      navigate={navigate}
+                      selectedDate={date}
+                    />
+                  )}
+                  {page === 'actions' && (
+                    <ActionPlan
+                      key={`${dataset.data.id}:${dataset.data.version}`}
+                      dataset={dataset.data}
+                      canWrite={canWrite}
+                      notify={setToast}
+                      onEvidence={(ids) => setEvidence({ ids })}
+                      selectedDate={date}
+                    />
+                  )}
+                  {page === 'flow' && (
+                    <FlowLab
+                      key={`${dataset.data.id}:${dataset.data.version}`}
+                      dataset={dataset.data}
+                      canWrite={canWrite}
+                      notify={setToast}
+                      onEvidence={(ids) => setEvidence({ ids })}
+                    />
+                  )}
+                  {page === 'data' && (
+                    <Data
+                      dataset={dataset.data}
+                      canWrite={canWrite}
+                      refresh={refresh}
+                      selectDataset={selectDataset}
+                      notify={setToast}
+                    />
+                  )}{' '}
+                  {page === 'incidents' && (
+                    <Incidents
+                      analysis={a}
+                      canWrite={canWrite}
+                      notify={setToast}
+                      evidence={(ids) => setEvidence({ ids })}
+                    />
+                  )}{' '}
+                  {page === 'assistant' && (
+                    <Assistant analysis={a} canWrite={canWrite} userId={session.user.id} />
+                  )}{' '}
+                  {page === 'audit' && session.user.role === 'admin' && <Audit />}
+                  {['audit', 'operations'].includes(page) && session.user.role !== 'admin' && (
+                    <p className="notice">
+                      Этот раздел доступен администратору рабочего пространства.
+                    </p>
+                  )}
+                  {page === 'operations' && session.user.role === 'admin' && (
+                    <Operations notify={setToast} />
+                  )}
+                </Suspense>
               </div>
             )
           )}

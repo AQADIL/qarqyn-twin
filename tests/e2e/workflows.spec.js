@@ -332,3 +332,124 @@ test('mobile scrolling seeks the actual assembly video without playback controls
   expect(await video.evaluate((element) => element.paused)).toBe(true);
   expect(await video.evaluate((element) => element.controls)).toBe(false);
 });
+
+test('target plan keeps its context through effect and concrete interventions', async ({
+  page
+}) => {
+  await login(page);
+  await navigate(page, /^План выпуска/);
+  await page.getByRole('spinbutton', { name: /Нужный годный выпуск/ }).fill('109');
+  await page.getByRole('button', { name: 'Найти путь к цели', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Цель достижима в модели', exact: true })
+  ).toBeVisible();
+  await expect(page.locator('.target-result')).toContainText('11,06');
+  await page.getByRole('button', { name: 'Оценить эффект', exact: true }).click();
+  await page.getByRole('slider', { name: 'Реализация плана, процентов', exact: true }).fill('50');
+  await expect(page.getByText('При реализации 50%', { exact: true })).toBeVisible();
+  await expect(page.getByText('107,7 шт.', { exact: true })).toBeVisible();
+  await navigate(page, /^План выпуска/);
+  await page.getByRole('spinbutton', { name: /Нужный годный выпуск/ }).fill('109');
+  await page.getByRole('button', { name: 'Найти путь к цели', exact: true }).click();
+  await page.getByRole('button', { name: 'Обосновать мероприятия', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Мероприятия', exact: true })).toBeVisible();
+  await expect(page.getByLabel(/^Целевой выпуск за выбранный горизонт/)).toHaveValue('109');
+  await expect(
+    page
+      .locator('.action-plan-event')
+      .filter({ hasText: 'Плановое ТО' })
+      .getByRole('button', { name: 'Защищено' })
+  ).toBeDisabled();
+});
+
+test('forecast validation refuses invented accuracy on the organizer history', async ({ page }) => {
+  await login(page);
+  await navigate(page, /^Риски и эффект/);
+  await page.getByRole('tab', { name: 'Проверка прогноза', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Прогноз должен обыграть простую базу.', exact: true })
+  ).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Независимая проверка прогноза', exact: true })
+  ).toContainText('Нужны данные');
+  await expect(
+    page.getByRole('table', { name: 'Ошибки методов на контрольном отрезке' })
+  ).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Скачать проверку' })).toBeEnabled();
+});
+
+test('flow simulation preserves parts and saves reusable assumptions without opening evidence', async ({
+  page
+}) => {
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(error.message));
+  await login(page);
+  await navigate(page, /^Поток линии/);
+  await page.getByRole('button', { name: 'Задать простую линию', exact: true }).click();
+  await page.getByLabel(/^Деталей на входе, шт\./).fill('10');
+  await page.getByRole('checkbox', { name: /Я проверил параметры сценария/ }).check();
+  const calculated = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/flow-simulate') && response.request().method() === 'POST'
+  );
+  await page.getByRole('button', { name: 'Рассчитать поток', exact: true }).click();
+  const response = await calculated;
+  expect(response.status()).toBe(200);
+  const result = await response.json();
+  expect(result.completed).toBe(10);
+  expect(result.conservation.difference).toBe(0);
+  await expect(page.getByRole('heading', { name: 'Куда пришёл поток', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const name = `Flow ${randomBytes(4).toString('hex')}`;
+  await page.getByLabel('Название модели', { exact: true }).fill(name);
+  await page.getByRole('button', { name: 'Сохранить модель', exact: true }).click();
+  const saved = page.locator('.flow-saved li').filter({ hasText: name });
+  await expect(saved).toBeVisible();
+  await saved.getByRole('button', { name: 'Загрузить условия', exact: true }).click();
+  await expect(
+    page.getByRole('checkbox', { name: /Я проверил параметры сценария/ })
+  ).not.toBeChecked();
+  expect(failures).toEqual([]);
+});
+
+test('confirmed intervention creates a traceable assigned task without duplicate dispatch', async ({
+  page
+}) => {
+  await login(page);
+  await navigate(page, /^Мероприятия/);
+  const event = page
+    .locator('.action-plan-event')
+    .filter({ has: page.getByRole('button', { name: 'Исходная запись D1', exact: true }) });
+  await event.getByRole('button', { name: 'Добавить работу', exact: true }).click();
+  const title = `Engineering ${randomBytes(4).toString('hex')}`;
+  await page.getByLabel('Какую работу выполнить', { exact: true }).fill(title);
+  await page.getByLabel('Ответственный', { exact: true }).fill('Synthetic test engineer');
+  await page.getByLabel('Срок выполнения', { exact: true }).fill('2026-10-16');
+  await page
+    .getByLabel('Как работа устраняет причину', { exact: true })
+    .fill('Controlled browser fixture, not a real maintenance prescription.');
+  await page
+    .getByLabel(/^На чём основана оценка минут/)
+    .fill('Synthetic test evidence for UI validation.');
+  await page.getByLabel(/^Вернуть из этой остановки, мин/).fill('2');
+  await page.getByLabel(/^Уверенность инженера, %/).fill('75');
+  await page.getByLabel(/^Разовые затраты, ₸/).fill('0');
+  await page.getByLabel(/^Затраты за расчётный период, ₸/).fill('0');
+  await page
+    .getByLabel('Как подтвердим фактический результат', { exact: true })
+    .fill('Compare observed comparable shifts.');
+  await page.getByRole('checkbox', { name: /Инженер проверил причину/ }).check();
+  await page.getByRole('button', { name: 'Проверить план и эффект', exact: true }).click();
+  await page.getByLabel('Название плана', { exact: true }).fill(title);
+  await page.getByRole('button', { name: 'Сохранить план', exact: true }).click();
+  const saved = page.locator('.action-plan-saved-row').filter({ hasText: title });
+  await expect(saved).toBeVisible();
+  await saved.getByRole('button', { name: 'Создать задачи', exact: true }).click();
+  await saved.getByRole('button', { name: 'Создать задачи', exact: true }).click();
+  await navigate(page, /^Отклонения/);
+  await page.getByLabel('Поиск задач').fill(title);
+  const card = page.locator('.task-list article').filter({ hasText: title });
+  await expect(card).toHaveCount(1);
+  await expect(card).toContainText('Synthetic test engineer');
+  await expect(card).toContainText('D1');
+});

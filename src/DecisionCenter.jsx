@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { api, downloadJson, format } from './api.js';
 import { Button, ErrorBox, Field, Loading, useResource } from './ui.jsx';
 import { Icon } from './icons.jsx';
 import './decision-center.css';
 import { openWorkflow, takeWorkflow, consumeWorkflow } from './workflow.js';
 import PilotReview from './PilotReview.jsx';
+const ForecastValidation = lazy(() => import('./ForecastValidation.jsx'));
 
 const views = [
   { id: 'forecast', name: 'Прогноз' },
+  { id: 'validation', name: 'Проверка прогноза' },
   { id: 'impact', name: 'Эффект решения' },
   { id: 'pilot', name: 'Проверка результата' }
 ];
@@ -97,6 +99,19 @@ function DecisionWorkspace({ dataset, notify, onEvidence, selectedDate, canWrite
         tabIndex={0}
       >
         <ForecastPanel dataset={dataset} onEvidence={onEvidence} canWrite={canWrite} />
+      </section>
+      <section
+        id="decision-panel-validation"
+        role="tabpanel"
+        aria-labelledby="decision-tab-validation"
+        hidden={view !== 'validation'}
+        tabIndex={0}
+      >
+        {view === 'validation' && (
+          <Suspense fallback={<Loading />}>
+            <ForecastValidation dataset={dataset} />
+          </Suspense>
+        )}
       </section>
       <section
         id="decision-panel-impact"

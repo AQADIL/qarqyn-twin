@@ -293,6 +293,21 @@ export default function TargetPlanner({
                     >
                       Оценить эффект
                     </Button>
+                    <Button
+                      onClick={() =>
+                        openWorkflow('actions', {
+                          datasetId: analysis.datasetId,
+                          datasetVersion: analysis.version,
+                          date: calculationDate || undefined,
+                          requestedTarget: plan.targetGoodOutput,
+                          suggestedStages: plan.interventions,
+                          hours,
+                          observationHours
+                        })
+                      }
+                    >
+                      Обосновать мероприятия
+                    </Button>
                     {saved && <Button onClick={() => navigate('lab')}>Открыть сценарии</Button>}
                   </div>
                   {!canWrite && (

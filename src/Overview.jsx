@@ -67,9 +67,9 @@ export default function Overview({ analysis: a, evidence, navigate, selectedDate
                 </span>
                 <ThemedImage
                   light={stageImage(s.id)}
-                  dark={stageImage(s.id, 'dark')}
+                  dark={stageImage(s.id)}
                   lightSrcSet={stageImageSources(s.id)}
-                  darkSrcSet={stageImageSources(s.id, 'dark')}
+                  darkSrcSet={stageImageSources(s.id)}
                   sizes="(max-width: 700px) 150px, 180px"
                   animate={{
                     y: !reduceMotion && stage.id === s.id ? -8 : 0,

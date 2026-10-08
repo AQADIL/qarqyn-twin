@@ -1,0 +1,436 @@
+.flow-lab {
+  min-width: 0;
+}
+.flow-context {
+  padding: 18px 0 22px;
+  border-bottom: 1px solid var(--line);
+}
+.flow-context strong {
+  display: block;
+  margin-bottom: 5px;
+}
+.flow-context p {
+  max-width: 82ch;
+  font-size: 14px;
+}
+.flow-editor {
+  padding-top: 24px;
+}
+.flow-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  gap: 20px;
+  align-items: start;
+}
+.flow-toolbar > .button {
+  margin-top: 29px;
+}
+.flow-notice {
+  margin-top: 18px;
+  padding: 15px 18px;
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 14px;
+}
+.flow-route-heading {
+  margin: 32px 0 16px;
+}
+.flow-route-heading p,
+.flow-source {
+  margin-top: 7px;
+  font-size: 13px;
+}
+.flow-stage-editor {
+  border-top: 1px solid var(--line);
+  padding: 20px 0;
+}
+.flow-stage-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.flow-stage-title h4 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.flow-stage-title h4 > span {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--secondary);
+}
+.flow-route-controls {
+  display: flex;
+  gap: 14px;
+}
+.flow-route-controls button,
+.flow-source-link,
+.flow-stop-row > button,
+.flow-comparison > button {
+  background: none;
+  border: 0;
+  padding: 6px 0;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.flow-stage-fields {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 17px;
+}
+.flow-stage-fields .field > span {
+  min-height: 40px;
+  font-size: 13px;
+}
+.flow-lab .field input,
+.flow-lab .field select {
+  width: 100%;
+  min-width: 0;
+}
+.flow-downtime {
+  margin-top: 19px;
+}
+.flow-downtime summary,
+.flow-model-notes summary {
+  cursor: pointer;
+  padding: 5px 0;
+  font-size: 14px;
+}
+.flow-downtime > p {
+  margin: 10px 0 15px;
+  font-size: 13px;
+  max-width: 78ch;
+}
+.flow-stop-row {
+  display: grid;
+  grid-template-columns: minmax(75px, 0.7fr) 1fr 1fr auto;
+  align-items: end;
+  gap: 12px;
+  max-width: 680px;
+  margin-bottom: 14px;
+}
+.flow-stop-row > button {
+  padding-bottom: 13px;
+}
+.flow-confirm {
+  display: flex;
+  gap: 12px;
+  align-items: start;
+  font-size: 14px;
+  margin: 24px 0 18px;
+  max-width: 80ch;
+  cursor: pointer;
+}
+.flow-confirm input {
+  margin: 4px 0 0;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+.flow-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.flow-actions > span {
+  font-size: 13px;
+  color: var(--accent);
+}
+.flow-result {
+  margin-top: 36px;
+  padding-top: 26px;
+  border-top: 1px solid var(--ink);
+}
+.flow-result.is-stale {
+  border-top-style: dashed;
+}
+.flow-result-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.flow-result-heading p {
+  margin-top: 7px;
+  font-size: 13px;
+}
+.flow-balance {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  padding: 28px 0;
+  margin-top: 18px;
+  border-block: 1px solid var(--line);
+}
+.flow-balance > div {
+  display: flex;
+  flex-direction: column;
+}
+.flow-balance strong {
+  font-family: var(--mono);
+  font-size: clamp(26px, 3vw, 42px);
+  font-weight: 500;
+}
+.flow-balance span {
+  font-size: 14px;
+  color: var(--secondary);
+}
+.flow-balance p {
+  grid-column: 1/-1;
+  font-size: 13px;
+}
+.flow-comparison {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--line);
+}
+.flow-comparison strong {
+  font-family: var(--mono);
+  font-size: 22px;
+}
+.flow-comparison span,
+.flow-comparison p {
+  flex: 1;
+  font-size: 13px;
+}
+.flow-playhead {
+  margin: 27px 0;
+}
+.flow-playhead > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.flow-playhead output {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.flow-playhead > input {
+  width: 100%;
+  accent-color: var(--accent);
+  padding: 0;
+  margin: 18px 0;
+}
+.flow-mini-route {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.flow-mini-route > div {
+  display: flex;
+  flex: 1 1 155px;
+  flex-direction: column;
+  gap: 5px;
+  border-top: 2px solid var(--line);
+  padding-top: 12px;
+}
+.flow-mini-route strong {
+  font-size: 14px;
+}
+.flow-mini-route span,
+.flow-mini-route em {
+  font-size: 12px;
+  color: var(--secondary);
+  font-style: normal;
+}
+.flow-mini-route em {
+  color: var(--accent);
+}
+.flow-legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  margin: 32px 0 8px;
+}
+.flow-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.flow-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+}
+.flow-state-bar {
+  display: flex;
+  height: 14px;
+  overflow: hidden;
+  background: var(--line);
+  margin: 13px 0;
+}
+.flow-state-bar span {
+  display: block;
+  height: 100%;
+}
+.flow-lab .busy {
+  background: var(--success);
+}
+.flow-lab .blocked {
+  background: var(--accent);
+}
+.flow-lab .starved {
+  background: var(--line);
+}
+.flow-lab .down {
+  background: var(--secondary);
+}
+.flow-capacity-row {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.flow-capacity-row > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.flow-capacity-row > div:first-child span {
+  font-size: 12px;
+  color: var(--secondary);
+}
+.flow-state-values {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.flow-state-values b {
+  font-family: var(--mono);
+  margin-left: 4px;
+  font-weight: 500;
+}
+.flow-model-notes {
+  margin-top: 25px;
+}
+.flow-model-notes ul {
+  font-size: 13px;
+  color: var(--secondary);
+  line-height: 1.6;
+  padding-left: 20px;
+  max-width: 88ch;
+}
+.flow-model-notes li {
+  margin-bottom: 8px;
+}
+.flow-save {
+  display: flex;
+  gap: 16px;
+  align-items: end;
+  margin-top: 26px;
+}
+.flow-save > .field {
+  flex: 1;
+  max-width: 480px;
+}
+.flow-saved {
+  margin-top: 40px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+}
+.flow-saved > ul {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+}
+.flow-saved li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.flow-saved li > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.flow-saved li span {
+  font-size: 12px;
+  color: var(--secondary);
+}
+@media (max-width: 1100px) {
+  .flow-stage-fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .flow-stage-fields .field > span {
+    min-height: 0;
+  }
+  .flow-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+  .flow-toolbar > .button {
+    margin-top: 0;
+    justify-self: start;
+  }
+  .flow-result-heading {
+    flex-direction: column;
+  }
+}
+@media (max-width: 560px) {
+  .flow-toolbar {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  .flow-stage-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 12px;
+  }
+  .flow-stage-fields .field > span {
+    font-size: 12px;
+  }
+  .flow-stop-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .flow-stop-row .field > span {
+    font-size: 11px;
+  }
+  .flow-stop-row > button {
+    grid-column: 1/-1;
+    justify-self: end;
+    padding: 3px 0;
+  }
+  .flow-balance {
+    gap: 16px 10px;
+  }
+  .flow-balance span {
+    font-size: 11px;
+  }
+  .flow-balance strong {
+    font-size: 25px;
+  }
+  .flow-playhead > div:first-child {
+    align-items: start;
+    flex-direction: column;
+  }
+  .flow-legend {
+    gap: 12px;
+  }
+  .flow-state-values {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .flow-save {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .flow-saved li {
+    align-items: start;
+    flex-direction: column;
+    gap: 10px;
+  }
+}

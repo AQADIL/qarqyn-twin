@@ -264,7 +264,12 @@ function IncidentForm({ item, analysis, onSave, onClose }) {
         </div>
         <div className="form-grid">
           <Field label="Ответственный">
-            <input value={data.assignee} maxLength={80} onChange={change('assignee')} />
+            <input
+              required={data.status === 'resolved'}
+              value={data.assignee}
+              maxLength={80}
+              onChange={change('assignee')}
+            />
           </Field>
           <Field label="Срок проверки">
             <input type="date" value={data.dueDate || ''} onChange={change('dueDate')} />
@@ -283,6 +288,7 @@ function IncidentForm({ item, analysis, onSave, onClose }) {
             rows={3}
             maxLength={3000}
             value={data.resolutionNote}
+            required={data.status === 'resolved'}
             onChange={change('resolutionNote')}
           />
         </Field>

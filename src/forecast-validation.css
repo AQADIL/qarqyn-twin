@@ -1,0 +1,221 @@
+.forecast-validation {
+  min-width: 0;
+  color: var(--ink);
+  padding: 24px 0;
+  border-top: 1px solid var(--line);
+}
+.forecast-validation-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+.forecast-validation-heading h3 {
+  font-size: 24px;
+}
+.forecast-validation p,
+.forecast-validation li {
+  max-width: 75ch;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.forecast-validation-heading p {
+  margin-top: 10px;
+}
+.forecast-validation-heading .button {
+  flex-shrink: 0;
+}
+.forecast-validation-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  padding: 18px 0;
+  margin: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.forecast-validation strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+.forecast-validation .field {
+  max-width: 560px;
+}
+.forecast-validation-verdict {
+  margin: 24px 0 16px;
+}
+.forecast-validation-status {
+  display: inline-flex;
+  padding: 4px 9px;
+  margin-bottom: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+}
+.forecast-validation-status.better {
+  color: var(--success);
+  background: var(--paper);
+}
+.forecast-validation-verdict p {
+  margin-top: 8px;
+}
+.forecast-validation-next {
+  padding: 18px 20px;
+  background: var(--paper);
+}
+.forecast-validation-next ul {
+  padding-left: 20px;
+  margin: 12px 0;
+}
+.forecast-validation a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.forecast-validation-next a {
+  display: inline-block;
+  padding: 10px 0;
+  font-size: 14px;
+}
+.forecast-validation-coverage {
+  margin: 18px 0 24px;
+}
+.forecast-validation-coverage > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.forecast-validation-coverage dt {
+  color: var(--secondary);
+  font-size: 13px;
+}
+.forecast-validation-coverage dd {
+  margin: 0;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.forecast-validation-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-bottom: 20px;
+}
+.forecast-validation-split > div {
+  border-top: 3px solid var(--line);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.forecast-validation-split > div:last-child {
+  border-color: var(--accent);
+}
+.forecast-validation-split span {
+  color: var(--secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.forecast-validation-method {
+  margin-bottom: 18px;
+}
+.forecast-validation-table {
+  overflow: auto;
+  max-width: 100%;
+  scrollbar-color: var(--line) var(--canvas);
+}
+.forecast-validation-table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+.forecast-validation-table caption {
+  text-align: left;
+  color: var(--secondary);
+  font-size: 12px;
+  padding: 10px 0;
+}
+.forecast-validation-table th,
+.forecast-validation-table td {
+  padding: 12px 14px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.forecast-validation-table th:first-child {
+  text-align: left;
+}
+.forecast-validation-table thead th {
+  background: var(--paper);
+  color: var(--secondary);
+  font-weight: 500;
+}
+.forecast-validation-table tbody th {
+  font-weight: 500;
+}
+.forecast-validation-paired {
+  display: grid;
+  gap: 8px;
+  margin: 20px 0;
+}
+.forecast-validation-detail {
+  border-top: 1px solid var(--line);
+  padding: 0 0 6px;
+}
+.forecast-validation-detail summary {
+  cursor: pointer;
+  padding: 14px 0;
+  min-height: 44px;
+  font-size: 14px;
+}
+.forecast-validation-detail p {
+  margin: 0 0 14px;
+}
+.forecast-validation-detail li {
+  margin-bottom: 8px;
+}
+.forecast-validation :is(a, summary, select, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (max-width: 720px) {
+  .forecast-validation-heading {
+    flex-direction: column;
+    gap: 16px;
+  }
+  .forecast-validation-heading h3 {
+    font-size: 21px;
+  }
+  .forecast-validation-heading .button {
+    width: 100%;
+  }
+  .forecast-validation-summary {
+    flex-direction: column;
+    gap: 7px;
+  }
+  .forecast-validation-split {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .forecast-validation-next {
+    padding: 16px;
+  }
+  .forecast-validation-coverage > div {
+    gap: 12px;
+  }
+  .forecast-validation-coverage dt {
+    flex: 1;
+  }
+  .forecast-validation-coverage dd {
+    text-align: right;
+  }
+  .forecast-validation .field {
+    width: 100%;
+  }
+  .forecast-validation select {
+    width: 100%;
+    min-width: 0;
+  }
+}

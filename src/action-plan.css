@@ -1,0 +1,323 @@
+.action-plan {
+  min-width: 0;
+}
+.action-plan .page-intro {
+  align-items: start;
+}
+.action-plan .page-intro p {
+  max-width: 72ch;
+  margin-top: 10px;
+}
+.action-plan-version {
+  color: var(--secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.action-plan-fieldset {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  min-width: 0;
+}
+.action-plan-scope {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 18px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+.action-plan h3 {
+  margin-bottom: 10px;
+}
+.action-plan-events,
+.action-plan-economics,
+.action-plan-saved {
+  padding: 30px 0;
+}
+.action-plan-events > p {
+  margin-bottom: 16px;
+  max-width: 72ch;
+}
+.action-plan-event {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto 168px;
+  gap: 14px;
+  padding: 18px 0;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+.action-plan-event strong span {
+  display: inline-block;
+  color: var(--secondary);
+  margin-left: 8px;
+  font-size: 13px;
+  font-weight: 400;
+}
+.action-plan-event p,
+.action-plan-event small,
+.action-plan-saved-row p,
+.action-plan-saved-row small {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.action-plan-event small,
+.action-plan-saved-row small {
+  color: var(--secondary);
+}
+.action-plan-minutes {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.action-plan-work {
+  padding: 26px;
+  margin-bottom: 24px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.action-plan-work > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 22px;
+}
+.action-plan-work > .field {
+  margin-bottom: 18px;
+}
+.action-plan-work header p {
+  font-size: 13px;
+}
+.action-plan-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.action-plan .field {
+  min-width: 0;
+}
+.action-plan textarea {
+  resize: vertical;
+  min-height: 82px;
+}
+.action-plan input,
+.action-plan select,
+.action-plan textarea {
+  min-width: 0;
+  width: 100%;
+  caret-color: var(--accent);
+}
+.action-plan input[type='checkbox'] {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+.action-plan-confirm {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  max-width: 72ch;
+  font-size: 14px;
+}
+.action-plan-economics {
+  border-bottom: 1px solid var(--line);
+}
+.action-plan details {
+  margin: 18px 0;
+}
+.action-plan summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 10px 0;
+  font-weight: 500;
+}
+.action-plan details p {
+  max-width: 75ch;
+  margin-bottom: 16px;
+}
+.action-plan-result {
+  margin-top: 28px;
+  padding: 28px 0;
+  border-bottom: 1px solid var(--line);
+}
+.action-plan-result-title {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.action-plan-result-title > span {
+  color: var(--secondary);
+  font-size: 13px;
+}
+.action-plan-result-title > span.ready {
+  color: var(--success);
+}
+.action-plan-target-status {
+  margin-top: 14px;
+  color: var(--ink);
+  max-width: 75ch;
+}
+.action-plan-economics > .field {
+  margin-bottom: 18px;
+}
+.action-plan-comparison {
+  margin: 28px 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+.action-plan-comparison > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.action-plan-comparison span {
+  font-size: 13px;
+  color: var(--secondary);
+}
+.action-plan-comparison strong {
+  font-family: var(--mono);
+  font-size: 27px;
+  font-weight: 500;
+}
+.action-plan-comparison small {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.action-plan-comparison meter {
+  width: 100%;
+  height: 12px;
+  accent-color: var(--accent);
+}
+.action-plan-comparison meter::-webkit-meter-bar {
+  background: var(--line);
+  border: 0;
+}
+.action-plan-comparison meter::-webkit-meter-optimum-value {
+  background: var(--accent);
+}
+.action-plan-comparison meter::-moz-meter-bar {
+  background: var(--accent);
+}
+.action-plan-money {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  border-top: 1px solid var(--line);
+  padding: 15px 0;
+}
+.action-plan-money strong {
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+.action-plan-note,
+.action-plan-review,
+.action-plan-assumptions {
+  font-size: 13px;
+}
+.action-plan-review ul {
+  margin: 6px 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 8px;
+}
+.action-plan-save {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0;
+}
+.action-plan-save .field {
+  flex: 1 1 250px;
+}
+.action-plan-saved-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.action-plan-saved-row > div {
+  flex: 1 1 260px;
+}
+.action-plan :is(button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.action-plan ::selection {
+  background: var(--accent);
+  color: var(--paper);
+}
+@media (max-width: 900px) {
+  .action-plan-event {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .action-plan-event > div {
+    grid-column: 1 / -1;
+  }
+  .action-plan-event > .button:last-child {
+    grid-column: 3;
+  }
+  .action-plan-scope {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .action-plan-scope > .field:first-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 600px) {
+  .action-plan .page-intro {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .action-plan-work {
+    padding: 18px 14px;
+  }
+  .action-plan-work > header {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .action-plan-two,
+  .action-plan-comparison,
+  .action-plan-scope {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .action-plan-comparison {
+    gap: 18px;
+  }
+  .action-plan-comparison > div {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+  .action-plan-comparison meter {
+    grid-column: 1 / -1;
+  }
+  .action-plan-comparison strong {
+    font-size: 23px;
+  }
+  .action-plan-money {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .action-plan-event {
+    column-gap: 8px;
+  }
+  .action-plan-event .button {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .action-plan-save > .button {
+    flex: 1 1 auto;
+  }
+  .action-plan-saved-row > .button {
+    flex: 1 1 auto;
+  }
+}

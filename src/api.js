@@ -6,7 +6,9 @@ function validatePage(path, method, body) {
   const params = new URLSearchParams(query);
   if (!params.has('page') && !params.has('pageSize')) return;
   if (
-    !/^\/(?:scenarios|incidents|conversations|audit)$|^\/datasets\/[^/]+\/versions$/.test(resource)
+    !/^\/(?:scenarios|incidents|conversations|audit|flow-studies|action-plans)$|^\/datasets\/[^/]+\/versions$/.test(
+      resource
+    )
   )
     return;
   if (
