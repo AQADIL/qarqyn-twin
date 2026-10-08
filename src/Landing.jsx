@@ -157,11 +157,6 @@ export default function Landing({ onOpen, onLogin, busy, error }) {
       </header>
       <main id="main" tabIndex={-1}>
         <Hero onOpen={onOpen} busy={busy} error={error} />
-        <div className="landing-source-note">
-          <span>Кейс Allur / Qostanai AI Industry Hackathon 2026</span>
-          <span>Демо на тестовых данных организаторов. Иллюстрации созданы с ИИ.</span>
-        </div>
-
         <Story onOpen={onOpen} busy={busy} />
         <section className="principles" id="principles" aria-labelledby="principles-title">
           <h2 id="principles-title">

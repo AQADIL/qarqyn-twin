@@ -698,17 +698,6 @@ details p {
   object-fit: contain;
   object-position: right center;
 }
-.landing-source-note {
-  display: flex;
-  justify-content: space-between;
-  gap: 30px;
-  padding: 22px 3.8%;
-  border-block: 1px solid #c9cdc4;
-  font-size: 12px;
-  color: #626960;
-  position: relative;
-  background: #f1f0eb;
-}
 .process-story {
   padding: 88px 5.5% 72px;
   background: #e9eae3;
@@ -1051,12 +1040,6 @@ details p {
   }
   .hero-art img {
     object-position: center;
-  }
-  .landing-source-note {
-    padding: 18px 6%;
-    flex-direction: column;
-    gap: 7px;
-    font-size: 12px;
   }
   .assembly-sticky {
     display: flex;
