@@ -34,7 +34,7 @@ const insight = {
     explanation: 'Test hypothesis',
     hours: 8,
     observationHours: 8,
-    interventions: [{ stageId: 'painting', recoverMinutes: 20, defectPct: 2 }]
+    interventions: [{ stageId: 'painting', recoverMinutes: 0, defectPct: 2 }]
   }
 };
 
@@ -191,8 +191,16 @@ test('AI recovery excludes normalized planned maintenance from prompts, comparis
       return providerResponse(proposal);
     });
     const result = await assistant.ask({ ...request, data: source });
+    const weldingLimit = result.proposal.recoveryLimits.find(
+      (limit) => limit.stageId === 'welding'
+    );
     assert.deepEqual(
-      result.proposal.recoveryLimits.find((limit) => limit.stageId === 'welding'),
+      {
+        stageId: weldingLimit.stageId,
+        maxMinutes: weldingLimit.maxMinutes,
+        excludedPlannedMinutes: weldingLimit.excludedPlannedMinutes,
+        excludedSourceIds: weldingLimit.excludedSourceIds
+      },
       {
         stageId: 'welding',
         maxMinutes: 12.5,
@@ -202,7 +210,7 @@ test('AI recovery excludes normalized planned maintenance from prompts, comparis
     );
     assert.equal(
       result.proposal.recoveryLimits.find((limit) => limit.stageId === 'painting').maxMinutes,
-      20
+      0
     );
     for (const recoverMinutes of [12.5001, 27.5]) {
       proposal.proposal.interventions[0].recoverMinutes = recoverMinutes;
@@ -233,7 +241,7 @@ test('budget rejects before network and ambiguous transport failure retains rese
     await assert.rejects(assistant.ask(request), /прервано/);
     assert.equal(calls, 1);
     assert.ok(assistant.budget().accountedUsd > 0.06);
-    assert.equal(db.prepare('SELECT state FROM ai_usage').get().state, 'reserved');
+    assert.equal(db.prepare('SELECT state FROM ai_usage').get().state, 'uncertain');
   } finally {
     db.close();
   }
@@ -347,6 +355,64 @@ test('oversized context and structurally invalid provider content never become a
       /проверку структуры/
     );
     assert.equal(bounded.budget().accountedUsd, 0.014);
+  } finally {
+    db.close();
+  }
+});
+
+test('large valid datasets use bounded recent records while keeping measured aggregates and citation scope', async () => {
+  const db = openDatabase(':memory:', config),
+    large = structuredClone(data);
+  large.name = 'Synthetic long-history context test';
+  for (const key of ['production', 'quality', 'downtime'])
+    large[key] = Array.from({ length: 90 }, (_, day) =>
+      data[key]
+        .slice(0, 3)
+        .map((row, index) => ({
+          ...row,
+          id: `${key[0]}_${day}_${index}`,
+          date: new Date(Date.UTC(2026, 0, day + 1)).toISOString().slice(0, 10)
+        }))
+    ).flat();
+  let received;
+  try {
+    const assistant = createAssistant(db, config, async (url, options) => {
+      assert.ok(Buffer.byteLength(options.body) <= 80000);
+      received = JSON.parse(JSON.parse(options.body).input[0].content);
+      const id = received.records.quality.at(-1).id;
+      return providerResponse({
+        ...insight,
+        proposal: null,
+        observations: [
+          { title: 'Current evidence', explanation: 'Selected source', sourceIds: [id] }
+        ]
+      });
+    });
+    const result = await assistant.ask({ ...request, data: large });
+    assert.equal(result.proposal, null);
+    assert.ok(received.recordSelection.included < received.recordSelection.total);
+    assert.equal(received.recordSelection.aggregates, 'computed from the full dataset');
+    assert.equal(
+      received.totals.output,
+      large.production
+        .filter((row) => row.stageId === 'assembly')
+        .reduce((total, row) => total + row.actual, 0)
+    );
+    const omitted = large.quality.find(
+      (row) => !received.records.quality.some((item) => item.id === row.id)
+    ).id;
+    await assert.rejects(
+      createAssistant(db, config, async () =>
+        providerResponse({
+          ...insight,
+          proposal: null,
+          observations: [
+            { title: 'Omitted', explanation: 'Not in provider context', sourceIds: [omitted] }
+          ]
+        })
+      ).ask({ ...request, data: large }),
+      /неизвестную ссылку/
+    );
   } finally {
     db.close();
   }

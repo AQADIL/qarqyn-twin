@@ -294,12 +294,13 @@ test('authenticated API enforces ownership, CSRF, optimistic concurrency and per
     await t.test('scenario stores calculated result and immutable source version', async () => {
       const body = {
         name: 'Painting improvement',
+        expectedDatasetVersion: 2,
         note: 'Test',
         input: {
           datasetId: id,
           hours: 8,
           observationHours: 8,
-          interventions: [{ stageId: 'painting', recoverMinutes: 20, defectPct: 2 }]
+          interventions: [{ stageId: 'painting', recoverMinutes: 0, defectPct: 2 }]
         }
       };
       const r = await request('/scenarios', 'POST', body, a);

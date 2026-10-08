@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { analyze, simulate, optimize } from './analytics.js';
+import { analyze, simulate, optimize, recoveryLimits as getRecoveryLimits } from './analytics.js';
 import { forecast } from './forecast.js';
 import { fail, parse } from './schema.js';
 
@@ -58,6 +58,7 @@ const instructions = `Ты инженерный помощник QARQYN для �
 
 export function createAssistant(db, config, fetcher = fetch) {
   const active = new Set();
+  const activeRequests = new Set();
   const available = () => Boolean(config.aiUrl && config.aiKey && config.aiModel);
   const accountedCost = () =>
     db.prepare('SELECT COALESCE(SUM(cost_usd),0) AS amount FROM ai_usage').get().amount;
@@ -71,34 +72,35 @@ export function createAssistant(db, config, fetcher = fetch) {
       reasoning: config.aiReasoning || null
     };
   }
-  async function ask({ data, datasetId, datasetVersion, question, history = [], userId }) {
+  async function ask({
+    data,
+    datasetId,
+    datasetVersion,
+    question,
+    history = [],
+    userId,
+    signal,
+    requestId
+  }) {
+    signal?.throwIfAborted();
     const conversation = parse(assistantHistorySchema, history);
     if (!available()) fail(503, 'Внешний ИИ не подключён. Аналитика и сценарии работают локально.');
     if (active.has(userId)) fail(429, 'Предыдущий запрос ещё обрабатывается. Дождитесь ответа.');
     const a = analyze(data);
     const measured = a.stages.filter((s) => s.observations);
-    const recoveryLimits = measured.map((stage) => {
-      const excluded = data.downtime.filter(
-        (row) =>
-          row.stageId === stage.id &&
-          row.reason.trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru-RU') === 'плановое то'
-      );
-      const excludedPlannedMinutes =
-        excluded.reduce((total, row) => total + row.minutes, 0) / stage.observations;
-      return {
-        stageId: stage.id,
-        maxMinutes: Math.min(
-          480,
-          Math.max(0, stage.downtimeMinutes / stage.observations - excludedPlannedMinutes)
-        ),
-        excludedPlannedMinutes,
-        excludedSourceIds: excluded.map((row) => row.id)
-      };
-    });
+    const recoveryLimits = getRecoveryLimits(data, measured);
     const recoveryByStage = new Map(recoveryLimits.map((limit) => [limit.stageId, limit]));
     const canSimulate = measured.every((stage) => stage.defectPct !== null);
     const projection = forecast(data);
-    const comparison = (canSimulate ? optimize(data, 8, 8) : [])
+    let options = [],
+      scenarioUnavailable = null;
+    try {
+      if (canSimulate) options = optimize(data, 8, 8);
+    } catch (error) {
+      if (!error.status) throw error;
+      scenarioUnavailable = error.message;
+    }
+    const comparison = options
       .map((option) => {
         const input = {
           ...option.input,
@@ -173,7 +175,8 @@ export function createAssistant(db, config, fetcher = fetch) {
           })),
         limitations: projection.limitations
       },
-      scenarioAvailable: canSimulate,
+      scenarioAvailable: canSimulate && !scenarioUnavailable,
+      scenarioUnavailable,
       records: a.records
     };
     const payload = {
@@ -193,14 +196,67 @@ export function createAssistant(db, config, fetcher = fetch) {
       }
     };
     delete payload.text.format.schema.$schema;
-    const encoded = JSON.stringify(payload);
-    if (Buffer.byteLength(encoded) > 80000)
-      fail(422, 'Набор слишком большой для этого ИИ-запроса. Используйте меньшую рабочую выборку.');
+    let encoded = JSON.stringify(payload);
+    if (Buffer.byteLength(encoded) > 80000) {
+      const allRecords = Object.entries(a.records);
+      let limit = 80;
+      do {
+        context.records = Object.fromEntries(
+          allRecords.map(([kind, rows]) => [
+            kind,
+            [...rows]
+              .sort(
+                (a, b) =>
+                  String(b.date ?? b.month ?? '').localeCompare(String(a.date ?? a.month ?? '')) ||
+                  a.id.localeCompare(b.id)
+              )
+              .slice(0, limit)
+          ])
+        );
+        const included = new Set(
+          Object.values(context.records)
+            .flat()
+            .map((row) => row.id)
+        );
+        context.stages = context.stages.map((stage) => ({
+          ...stage,
+          sourceIds: stage.sourceIds.filter((id) => included.has(id))
+        }));
+        context.findings = context.findings.map((finding) => ({
+          ...finding,
+          sourceIds: finding.sourceIds?.filter((id) => included.has(id))
+        }));
+        context.forecast.stages = context.forecast.stages.map((stage) => ({
+          ...stage,
+          metrics: stage.metrics.map((metric) => ({
+            ...metric,
+            sourceIds: metric.sourceIds.filter((id) => included.has(id))
+          }))
+        }));
+        context.recordSelection = {
+          strategy: 'latest records per category',
+          included: included.size,
+          total: [...sourceIds].length,
+          aggregates: 'computed from the full dataset',
+          limitation:
+            'Only included records can be cited. Earlier individual records are not available in this request.'
+        };
+        payload.input[0].content = JSON.stringify(context);
+        encoded = JSON.stringify(payload);
+        limit = Math.floor(limit / 2);
+      } while (Buffer.byteLength(encoded) > 80000 && limit >= 1);
+      sourceIds.clear();
+      Object.values(context.records)
+        .flat()
+        .forEach((row) => sourceIds.add(row.id));
+      if (Buffer.byteLength(encoded) > 80000)
+        fail(422, 'Сводка превышает лимит ИИ. Создайте выборку по периоду или участку.');
+    }
     // Reserving every input byte as a token deliberately overestimates this bounded text request.
     const reservation =
       (Buffer.byteLength(encoded) * config.aiInputPrice) / 1000000 +
       (config.aiMaxOutput * config.aiOutputPrice) / 1000000;
-    const id = randomUUID();
+    const id = requestId || randomUUID();
     if (!(Number.isFinite(reservation) && reservation > 0 && config.aiBudget > 0))
       fail(503, 'Владелец должен настроить лимиты и цены ИИ на сервере.');
     db.exec('BEGIN IMMEDIATE');
@@ -219,11 +275,14 @@ export function createAssistant(db, config, fetcher = fetch) {
       throw e;
     }
     active.add(userId);
+    activeRequests.add(id);
     try {
       const response = await fetcher(`${config.aiUrl.replace(/\/$/, '')}/responses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.aiKey}` },
-        signal: AbortSignal.timeout(config.aiTimeout),
+        signal: signal
+          ? AbortSignal.any([signal, AbortSignal.timeout(config.aiTimeout)])
+          : AbortSignal.timeout(config.aiTimeout),
         body: encoded
       });
       if (!response.ok) {
@@ -277,6 +336,11 @@ export function createAssistant(db, config, fetcher = fetch) {
       }
       if (insight.observations.some((o) => o.sourceIds.some((id) => !sourceIds.has(id))))
         fail(502, 'Ответ ИИ содержит неизвестную ссылку на данные и отклонён.');
+      if (context.recordSelection)
+        insight.limitations = [
+          ...insight.limitations.slice(0, 5),
+          `ИИ получил ${context.recordSelection.included} из ${context.recordSelection.total} последних исходных записей; агрегаты рассчитаны по всему набору. Выводы по отдельным старым записям требуют отдельной выборки.`
+        ];
       let proposal = null;
       if (insight.proposal) {
         const p = insight.proposal;
@@ -322,6 +386,8 @@ export function createAssistant(db, config, fetcher = fetch) {
         budget: budget()
       };
     } catch (e) {
+      db.prepare("UPDATE ai_usage SET state='uncertain' WHERE id=? AND state='reserved'").run(id);
+      if (signal?.aborted) fail(499, 'Ответ остановлен. Возможный расход сохранён для сверки.');
       if (e.name === 'TimeoutError')
         fail(
           504,
@@ -335,7 +401,8 @@ export function createAssistant(db, config, fetcher = fetch) {
       throw e;
     } finally {
       active.delete(userId);
+      activeRequests.delete(id);
     }
   }
-  return { ask, available, budget };
+  return { ask, available, budget, isActive: (id) => activeRequests.has(id) };
 }

@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import express from 'express';
 import { openDatabase } from './db.js';
-import { createApp } from './app.js';
+import { createApp, errorHandler } from './app.js';
 
 const required = [
   'HOST',
@@ -21,6 +21,25 @@ const origin = new URL(process.env.APP_ORIGIN);
 const port = Number(process.env.PORT);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT');
 const production = process.argv.includes('--production');
+const trustProxy = (process.env.TRUST_PROXY || '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+if (
+  trustProxy.some(
+    (value) =>
+      !['loopback', 'linklocal', 'uniquelocal'].includes(value) &&
+      !/^[\da-fA-F:.]+(?:\/\d{1,3})?$/.test(value)
+  )
+)
+  throw new Error(
+    'TRUST_PROXY must contain explicit trusted IP addresses/subnets; boolean values and hop counts are forbidden.'
+  );
+function nonnegativeInteger(name, maximum) {
+  const value = process.env[name] === undefined ? 0 : Number(process.env[name]);
+  if (!Number.isInteger(value) || value < 0 || value > maximum) throw new Error(`Invalid ${name}.`);
+  return value;
+}
 if (
   production &&
   origin.protocol !== 'https:' &&
@@ -29,6 +48,12 @@ if (
   throw new Error('Production deployments require an HTTPS APP_ORIGIN.');
 const config = {
   production,
+  trustProxy,
+  clientBuildPath: production ? resolve('dist/index.html') : null,
+  backupDir: process.env.BACKUP_DIR,
+  auditRetentionDays: nonnegativeInteger('AUDIT_RETENTION_DAYS', 36500),
+  chatRetentionDays: nonnegativeInteger('CHAT_RETENTION_DAYS', 36500),
+  backupKeepCount: nonnegativeInteger('BACKUP_KEEP_COUNT', 10000),
   origin: origin.origin,
   secure: origin.protocol === 'https:',
   adminUsername: process.env.ADMIN_USERNAME,
@@ -79,10 +104,19 @@ if (production) {
     }
   });
 }
+app.use(errorHandler(config));
 server.listen(port, process.env.HOST, () => console.log(`QARQYN running at ${origin.origin}`));
+let closing = false;
 async function shutdown() {
+  if (closing) return;
+  closing = true;
   await vite?.close();
+  const timeout = setTimeout(() => {
+    server.closeAllConnections();
+  }, 10000);
+  timeout.unref();
   server.close(() => {
+    clearTimeout(timeout);
     db.close();
     process.exit(0);
   });
