@@ -224,7 +224,22 @@ export const incidentSchema = z
     dueDate: dateSchema.nullable().default(null),
     resolutionNote: z.string().trim().max(3000).default('')
   })
-  .strict();
+  .strict()
+  .superRefine((incident, ctx) => {
+    if (incident.status !== 'resolved') return;
+    if (!incident.assignee)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['assignee'],
+        message: 'Укажите ответственного за выполненную работу.'
+      });
+    if (!incident.resolutionNote)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['resolutionNote'],
+        message: 'Зафиксируйте фактический результат перед закрытием задачи.'
+      });
+  });
 export const loginSchema = z
   .object({ username: text(80), password: z.string().min(1).max(256) })
   .strict();

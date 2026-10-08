@@ -86,7 +86,19 @@ test('failed audit rolls back dataset/entity CRUD and version archives', async (
     [`/datasets/${id}`, 'PUT', { version: 1, data: { ...h.source, name: 'Must roll back' } }],
     [`/datasets/${id}`, 'DELETE', { version: 1 }],
     ['/incidents', 'POST', incident],
-    [`/incidents/${row.id}`, 'PUT', { version: 1, data: { ...incident, status: 'resolved' } }],
+    [
+      `/incidents/${row.id}`,
+      'PUT',
+      {
+        version: 1,
+        data: {
+          ...incident,
+          status: 'resolved',
+          assignee: 'Engineer',
+          resolutionNote: 'Recorded result'
+        }
+      }
+    ],
     [`/incidents/${row.id}`, 'DELETE', { version: 1 }]
   ])
     assert.equal((await h.request(path, method, body, h.owner)).status, 500);
@@ -297,7 +309,7 @@ test('backup integrity, offline restore and disabled retention preserve data and
   assert.equal(retained.body.backups, 0);
   assert.equal(existsSync(path), true);
   const operations = (await h.request('/operations', 'GET', undefined, h.owner)).body;
-  assert.equal(operations.database.schemaVersion, 2);
+  assert.equal(operations.database.schemaVersion, 3);
   assert.equal(operations.backups.count, 1);
 });
 

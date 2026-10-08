@@ -18,6 +18,7 @@ import { assistantHistorySchema, createAssistant } from './ai.js';
 import { forecast } from './forecast.js';
 import { evaluateImpact, impactSchema } from './impact.js';
 import { evaluatePilot, pilotSchema } from './pilot.js';
+import { mountEngineering } from './engineering.js';
 import {
   parse,
   fail,
@@ -426,6 +427,7 @@ export function createApp(db, config) {
     res.json({ ...analyze(d.data, date), datasetId: d.id, version: d.version, name: d.name });
   });
   const forecastCache = new Map();
+  mountEngineering(app, db, { dataset, writer, audit, config });
   app.get('/api/forecast/:id', (req, res) => {
     const d = dataset(req, req.params.id);
     const key = `${d.id}:${d.version}`;

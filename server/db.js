@@ -49,7 +49,10 @@ function migrate(db) {
      CREATE TABLE IF NOT EXISTS chat_messages(id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,request_id TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('user','assistant')),state TEXT NOT NULL CHECK(state IN ('pending','completed','failed','cancelled')),payload TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
      CREATE INDEX IF NOT EXISTS conversation_owner_dataset ON conversations(owner_id,dataset_id,updated_at);
      CREATE INDEX IF NOT EXISTS message_conversation ON chat_messages(conversation_id,created_at);
-     CREATE TABLE IF NOT EXISTS ai_reconciliations(request_id TEXT PRIMARY KEY REFERENCES ai_usage(id),actor TEXT NOT NULL,outcome TEXT NOT NULL,note TEXT NOT NULL,previous_cost REAL NOT NULL,created_at TEXT NOT NULL);`
+     CREATE TABLE IF NOT EXISTS ai_reconciliations(request_id TEXT PRIMARY KEY REFERENCES ai_usage(id),actor TEXT NOT NULL,outcome TEXT NOT NULL,note TEXT NOT NULL,previous_cost REAL NOT NULL,created_at TEXT NOT NULL);`,
+    `CREATE TABLE engineering_studies(id TEXT PRIMARY KEY,dataset_id TEXT NOT NULL REFERENCES datasets(id) ON DELETE CASCADE,owner_id TEXT NOT NULL REFERENCES users(id),kind TEXT NOT NULL CHECK(kind IN ('flow','action')),payload TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+     CREATE INDEX engineering_study_owner ON engineering_studies(dataset_id,owner_id,kind);
+     CREATE TABLE engineering_dispatches(study_id TEXT NOT NULL REFERENCES engineering_studies(id) ON DELETE CASCADE,study_version INTEGER NOT NULL,incident_ids TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(study_id,study_version));`
   ];
   db.exec(
     'CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT NOT NULL)'

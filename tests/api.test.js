@@ -243,7 +243,15 @@ test('authenticated API enforces ownership, CSRF, optimistic concurrency and per
           await request(
             `/incidents/${incident.id}`,
             'PUT',
-            { version: 1, data: { ...body, status: 'resolved' } },
+            {
+              version: 1,
+              data: {
+                ...body,
+                status: 'resolved',
+                assignee: 'Engineer',
+                resolutionNote: 'Measured outcome recorded'
+              }
+            },
             b
           )
         ).status,
@@ -254,7 +262,15 @@ test('authenticated API enforces ownership, CSRF, optimistic concurrency and per
           await request(
             `/incidents/${incident.id}`,
             'PUT',
-            { version: 1, data: { ...body, status: 'resolved' } },
+            {
+              version: 1,
+              data: {
+                ...body,
+                status: 'resolved',
+                assignee: 'Engineer',
+                resolutionNote: 'Measured outcome recorded'
+              }
+            },
             a
           )
         ).status,
