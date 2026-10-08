@@ -1,0 +1,1104 @@
+.decision-center {
+  min-width: 0;
+  --decision-muted-surface: #e8e9e1;
+  --decision-caution: #805020;
+}
+.workspace-main:has(.decision-center) {
+  padding-top: 22px;
+}
+.workspace-main:has(.decision-center) .workspace-title {
+  margin-bottom: 16px;
+}
+.workspace-main:has(.decision-center) .workspace-title h1 {
+  font-size: 29px;
+}
+.decision-center [hidden] {
+  display: none;
+}
+.decision-center [role='tabpanel']:focus-visible {
+  outline-offset: 6px;
+}
+.decision-center .decision-intro {
+  gap: 12px;
+  align-items: flex-start;
+  padding-top: 16px;
+  margin-bottom: 14px;
+}
+.decision-center .decision-intro h2 {
+  font-size: 24px;
+  margin-bottom: 7px;
+}
+.decision-center .decision-intro p {
+  max-width: 65ch;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.decision-version {
+  color: var(--secondary);
+  font-size: 12px;
+  flex-shrink: 0;
+  padding-top: 8px;
+}
+.decision-tabs {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.decision-tabs button {
+  min-height: 44px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 0 2px 10px;
+  color: var(--secondary);
+  font-weight: 500;
+}
+.decision-tabs button[aria-selected='true'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.decision-tabs button:hover {
+  color: var(--ink);
+}
+.decision-readiness {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  gap: 16px;
+  align-items: center;
+  padding: 8px 18px;
+  background: var(--decision-muted-surface);
+  margin-bottom: 20px;
+}
+.decision-state {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--decision-caution);
+  font-size: 14px;
+}
+.decision-state svg {
+  flex-shrink: 0;
+}
+.decision-state.backtested {
+  color: var(--success);
+}
+.decision-readiness p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.decision-readiness > span {
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--secondary);
+}
+.decision-readiness-details summary {
+  font-size: 12px;
+  cursor: pointer;
+  padding-block: 12px;
+  min-height: 44px;
+}
+.decision-readiness-details p {
+  padding-bottom: 12px;
+}
+.decision-readiness:has(details[open]) {
+  grid-template-columns: 1fr auto;
+}
+.decision-readiness-details[open] {
+  grid-column: 1 / -1;
+}
+.decision-forecast-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 36px;
+}
+.decision-stage-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.decision-stage-list > button {
+  text-align: left;
+  position: relative;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 20px 28px 20px 16px;
+  min-height: 148px;
+  transition: background-color 160ms ease-out;
+}
+.decision-stage-list > button:first-child {
+  border-top: 1px solid var(--line);
+}
+.decision-stage-list > button:hover {
+  background: var(--decision-muted-surface);
+}
+.decision-stage-list > button[aria-pressed='true'] {
+  background: var(--accent-soft);
+}
+.decision-stage-list > button > span {
+  display: block;
+}
+.decision-stage-list > button > svg {
+  position: absolute;
+  right: 12px;
+  top: 25px;
+  color: var(--secondary);
+}
+.decision-stage-list > button[aria-pressed='true'] > svg {
+  color: var(--accent);
+}
+.decision-stage-name {
+  font-size: 17px;
+  font-weight: 500;
+}
+.decision-stage-reading {
+  font-size: 27px;
+  letter-spacing: -0.025em;
+  margin-top: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.decision-stage-reading small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--secondary);
+  letter-spacing: 0;
+}
+.decision-stage-caption,
+.decision-stage-risk {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.decision-stage-risk {
+  margin-top: 8px;
+  color: var(--accent);
+}
+.decision-forecast-detail {
+  min-width: 0;
+}
+.decision-section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+.decision-section-heading h3 {
+  font-size: 24px;
+  letter-spacing: -0.025em;
+}
+.decision-section-heading p {
+  font-size: 13px;
+  margin-top: 7px;
+  line-height: 1.6;
+}
+.decision-section-heading > .text-button {
+  font-size: 12px;
+  white-space: nowrap;
+  min-height: 44px;
+}
+.decision-metric-switch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-bottom: 1px solid var(--line);
+  margin-top: 14px;
+}
+.decision-metric-switch > button {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 10px 14px;
+  min-height: 76px;
+  text-align: left;
+}
+.decision-metric-switch > button:first-child {
+  padding-left: 0;
+}
+.decision-metric-switch > button[aria-pressed='true'] {
+  border-bottom-color: var(--accent);
+}
+.decision-metric-switch > button:hover {
+  background: var(--decision-muted-surface);
+}
+.decision-metric-switch span {
+  display: block;
+  color: var(--secondary);
+  font-size: 12px;
+  min-height: 30px;
+}
+.decision-metric-switch strong {
+  font-size: 25px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+.decision-metric-switch small {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--secondary);
+}
+.decision-metric-switch [aria-pressed='true'] strong {
+  color: var(--accent);
+}
+.decision-chart {
+  margin: 10px 0 0;
+}
+.decision-chart svg {
+  width: 100%;
+  height: auto;
+  min-height: 170px;
+  overflow: visible;
+}
+.decision-chart-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.decision-chart-history {
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.decision-chart-dot {
+  fill: var(--ink);
+}
+.decision-chart-projection {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-dasharray: 5 5;
+}
+.decision-chart-backtest {
+  stroke: var(--success);
+  stroke-width: 2;
+  stroke-dasharray: 2 4;
+}
+.decision-chart-next {
+  fill: var(--paper);
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+.decision-chart-value,
+.decision-chart-estimate {
+  font-size: 13px;
+  fill: var(--ink);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.decision-chart-estimate {
+  fill: var(--accent);
+}
+.decision-chart-axis {
+  font-size: 12px;
+  fill: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+.decision-chart figcaption {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--secondary);
+  margin-top: 2px;
+}
+.decision-chart-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--secondary);
+}
+.decision-chart-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.decision-chart-key span::before {
+  content: '';
+  width: 20px;
+  border-top: 2px solid var(--ink);
+}
+.decision-chart-key .estimated::before {
+  border-top: 2px dashed var(--accent);
+}
+.decision-chart-key .backtested::before {
+  border-top: 2px dotted var(--success);
+}
+.decision-scope {
+  margin: 18px 0 22px;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.decision-validation {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 22px;
+  border-top: 1px solid var(--line);
+  padding: 20px 0;
+}
+.decision-validation > div {
+  min-width: 0;
+}
+.decision-validation span {
+  display: block;
+  color: var(--secondary);
+  font-size: 12px;
+  margin-bottom: 7px;
+}
+.decision-validation strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.decision-details {
+  border-top: 1px solid var(--line);
+  padding: 6px 0;
+}
+.decision-details summary,
+.decision-finance-inputs summary {
+  padding: 14px 0;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 44px;
+}
+.decision-details summary:hover,
+.decision-finance-inputs summary:hover {
+  color: var(--accent);
+}
+.decision-details p {
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 8px 0 14px;
+  max-width: 72ch;
+}
+.decision-details .text-button {
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.decision-signals {
+  margin: 8px 0 22px;
+}
+.decision-signals article {
+  display: flex;
+  gap: 12px;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+.decision-signals article > svg {
+  flex-shrink: 0;
+  color: var(--accent);
+  margin-top: 2px;
+}
+.decision-signals h4 {
+  font-size: 15px;
+}
+.decision-signals p {
+  font-size: 13px;
+  line-height: 1.65;
+  margin-top: 7px;
+}
+.decision-signals .text-button {
+  font-size: 12px;
+  margin-top: 9px;
+  min-height: 30px;
+}
+.decision-equipment-list > button {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  display: grid;
+  grid-template-columns: 1fr auto 20px;
+  gap: 16px;
+  align-items: center;
+  text-align: left;
+  min-height: 52px;
+  font-size: 13px;
+  padding: 10px 8px;
+}
+.decision-equipment-list > button:hover {
+  background: var(--decision-muted-surface);
+}
+.decision-equipment-list strong {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.decision-evidence-gaps {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.7fr) minmax(0, 1.7fr);
+  gap: 40px;
+  border-top: 1px solid var(--line);
+  margin-top: 40px;
+  padding-top: 30px;
+}
+.decision-evidence-gaps h3 {
+  font-size: 21px;
+}
+.decision-evidence-gaps > div p {
+  font-size: 13px;
+  line-height: 1.75;
+  margin-top: 12px;
+}
+.decision-evidence-gaps ol {
+  margin: 0;
+  padding-left: 20px;
+}
+.decision-evidence-gaps li {
+  padding: 0 0 20px 8px;
+  color: var(--secondary);
+  font-size: 13px;
+}
+.decision-evidence-gaps h4 {
+  font-size: 14px;
+  color: var(--ink);
+}
+.decision-evidence-gaps li p {
+  font-size: 13px;
+  line-height: 1.65;
+  margin-top: 6px;
+}
+.decision-limitations {
+  margin-top: 10px;
+}
+.decision-impact-layout {
+  display: grid;
+  grid-template-columns: 285px minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+.decision-impact-form {
+  min-width: 0;
+  border-right: 1px solid var(--line);
+  padding-right: 26px;
+}
+.decision-impact-form > h3 {
+  font-size: 19px;
+}
+.decision-impact-form > p {
+  font-size: 13px;
+  margin: 10px 0 24px;
+  line-height: 1.65;
+}
+.decision-impact-form .field {
+  margin-bottom: 21px;
+}
+.decision-impact-form .field > span {
+  font-size: 13px;
+}
+.decision-impact-form .field small {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.decision-impact-form .field > span > span {
+  display: flex;
+  justify-content: space-between;
+}
+.decision-impact-form .field > span strong {
+  color: var(--accent);
+  font-weight: 500;
+}
+.decision-impact-form input,
+.decision-impact-form select {
+  max-width: 100%;
+}
+.decision-impact-form .decision-target-input {
+  min-height: 60px;
+  font-size: 29px;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+.decision-impact-form input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+  min-height: 30px;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.decision-range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--secondary);
+  margin: -14px 0 24px;
+}
+.decision-finance-inputs {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  margin: 26px 0 20px;
+}
+.decision-finance-inputs > p {
+  font-size: 12px;
+  line-height: 1.65;
+  margin: 0 0 22px;
+}
+.decision-impact-form > .button {
+  width: 100%;
+}
+.decision-impact-form .decision-input-error {
+  color: var(--danger);
+  font-size: 12px;
+}
+.decision-impact-result {
+  min-width: 0;
+}
+.decision-result-status {
+  font-size: 12px;
+  min-height: 18px;
+  color: var(--secondary);
+  margin-bottom: 12px;
+}
+.decision-output-comparison {
+  margin: 24px 0 0;
+}
+.decision-output-comparison > div {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) 92px;
+  gap: 15px;
+  align-items: center;
+  min-height: 46px;
+}
+.decision-output-comparison > div > span {
+  font-size: 12px;
+  color: var(--secondary);
+}
+.decision-output-comparison > div > div {
+  height: 10px;
+  background: var(--decision-muted-surface);
+}
+.decision-output-comparison i {
+  display: block;
+  height: 100%;
+  background: #727b70;
+  transform-origin: left center;
+  transition: transform 180ms ease-out;
+}
+.decision-output-comparison .planned i {
+  background: #a27961;
+}
+.decision-output-comparison .realized i {
+  background: var(--accent);
+}
+.decision-output-comparison strong {
+  font-size: 18px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.decision-output-comparison small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--secondary);
+}
+.decision-impact-reading {
+  margin: 24px 0 30px;
+  padding: 22px 24px;
+  background: var(--sidebar);
+  color: var(--paper);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 20px;
+  align-items: center;
+}
+.decision-impact-reading > span {
+  font-size: 14px;
+  max-width: 30ch;
+}
+.decision-impact-reading > strong {
+  font-size: 34px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
+.decision-impact-reading small {
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #c4cec0;
+}
+.decision-impact-reading p {
+  font-size: 12px;
+  color: #c4cec0;
+}
+.decision-interventions h4,
+.decision-sensitivity h4,
+.decision-economics h4 {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+.decision-interventions > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 44px;
+  gap: 16px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding: 16px 0;
+}
+.decision-interventions > div > span {
+  min-width: 0;
+}
+.decision-interventions strong,
+.decision-interventions small {
+  display: block;
+}
+.decision-interventions strong {
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.decision-interventions small {
+  color: var(--secondary);
+  font-size: 12px;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.decision-interventions > p {
+  font-size: 13px;
+}
+.decision-source-button {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+}
+.decision-source-button:hover {
+  background: var(--decision-muted-surface);
+}
+.decision-sensitivity {
+  margin: 30px 0;
+}
+.decision-sensitivity > p {
+  font-size: 13px;
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+.decision-table-scroll {
+  overflow-x: auto;
+}
+.decision-center table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.decision-center table th,
+.decision-center table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.decision-center table th {
+  text-align: left;
+  font-weight: 500;
+}
+.decision-center table th:first-child {
+  padding-left: 0;
+}
+.decision-center table th:not(:first-child),
+.decision-center table td {
+  text-align: right;
+}
+.decision-center table thead {
+  color: var(--secondary);
+  font-size: 12px;
+}
+.decision-center table caption {
+  text-align: left;
+  font-size: 12px;
+  color: var(--secondary);
+  padding-block: 10px;
+}
+.decision-center .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.decision-center table tr.selected {
+  background: var(--accent-soft);
+}
+.decision-center table tr.selected th:first-child {
+  padding-left: 8px;
+}
+.decision-economics-empty {
+  display: flex;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+  margin: 24px 0;
+}
+.decision-economics-empty > svg {
+  flex-shrink: 0;
+  color: var(--secondary);
+}
+.decision-economics-empty h4 {
+  font-size: 15px;
+}
+.decision-economics-empty p {
+  font-size: 13px;
+  line-height: 1.7;
+  margin-top: 8px;
+}
+.decision-economics {
+  border-top: 1px solid var(--line);
+  padding-top: 26px;
+  margin: 30px 0;
+}
+.decision-economics dl {
+  margin: 0;
+}
+.decision-economics dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 0;
+  font-size: 13px;
+}
+.decision-economics dt {
+  color: var(--secondary);
+}
+.decision-economics dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.decision-economics .decision-net-effect {
+  border-block: 1px solid var(--line);
+  margin: 8px 0;
+  padding-block: 18px;
+}
+.decision-net-effect dt {
+  color: var(--ink);
+}
+.decision-net-effect dd {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--success);
+}
+.decision-economics.negative .decision-net-effect dd {
+  color: var(--danger);
+}
+.decision-economics > p {
+  font-size: 12px;
+  line-height: 1.65;
+  margin-top: 14px;
+}
+.decision-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 24px;
+  margin: 28px 0 22px;
+}
+.decision-result-actions .text-button {
+  font-size: 13px;
+  min-height: 44px;
+}
+.decision-chart-empty,
+.decision-unavailable {
+  padding: 30px 0;
+}
+.decision-chart-empty {
+  color: var(--secondary);
+  font-size: 14px;
+}
+.decision-unavailable p {
+  font-size: 14px;
+  margin: 10px 0 20px;
+}
+.decision-unattainable {
+  display: flex;
+  gap: 16px;
+  padding: 24px 0;
+  margin-block: 10px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.decision-unattainable > svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.decision-unattainable h4 {
+  font-size: 16px;
+}
+.decision-unattainable p {
+  font-size: 13px;
+  line-height: 1.7;
+  margin-top: 10px;
+}
+.decision-center input {
+  caret-color: var(--accent);
+}
+.decision-center ::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+@media (max-width: 1250px) {
+  .decision-readiness {
+    gap: 10px 16px;
+  }
+  .decision-forecast-layout {
+    grid-template-columns: 165px minmax(0, 1fr);
+    gap: 24px;
+  }
+  .decision-impact-layout {
+    grid-template-columns: 255px minmax(0, 1fr);
+    gap: 26px;
+  }
+  .decision-impact-form {
+    padding-right: 22px;
+  }
+  .decision-output-comparison > div {
+    grid-template-columns: 122px minmax(40px, 1fr) 80px;
+    gap: 10px;
+  }
+}
+@media (max-width: 1000px) {
+  .decision-center .decision-intro {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .decision-version {
+    padding-top: 0;
+  }
+  .decision-forecast-layout {
+    grid-template-columns: 1fr;
+  }
+  .decision-stage-list {
+    flex-direction: row;
+  }
+  .decision-stage-list > button {
+    flex: 1;
+    border-top: 1px solid var(--line);
+    min-height: 125px;
+  }
+  .decision-stage-list > button > svg {
+    display: none;
+  }
+  .decision-stage-reading {
+    font-size: 24px;
+  }
+  .decision-stage-risk {
+    font-size: 12px;
+  }
+  .decision-impact-layout {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  .decision-impact-form {
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 0 0 28px;
+  }
+  .decision-field-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .decision-impact-form > .button {
+    width: auto;
+  }
+  .decision-output-comparison > div {
+    grid-template-columns: 155px minmax(50px, 1fr) 90px;
+  }
+}
+@media (max-width: 620px) {
+  .workspace-main:has(.decision-center) {
+    padding-top: 16px;
+  }
+  .workspace-main:has(.decision-center) .workspace-title {
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .workspace-main:has(.decision-center) .workspace-title h1 {
+    font-size: 27px;
+    margin-top: 0;
+  }
+  .workspace-main:has(.decision-center) .dataset-select {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .workspace-main:has(.decision-center) .dataset-select .field {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+  .workspace-main:has(.decision-center) .dataset-select select {
+    width: 100%;
+    max-width: 100%;
+  }
+  .decision-center .decision-intro {
+    padding-top: 12px;
+    margin-bottom: 8px;
+  }
+  .decision-center .decision-intro h2 {
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+  .decision-center .decision-intro p {
+    font-size: 12px;
+  }
+  .decision-tabs {
+    gap: 22px;
+    margin-bottom: 12px;
+  }
+  .decision-tabs button {
+    font-size: 14px;
+  }
+  .decision-readiness,
+  .decision-readiness:has(details[open]) {
+    grid-template-columns: 1fr;
+    gap: 3px;
+    padding: 12px 14px 2px;
+    margin-bottom: 18px;
+  }
+  .decision-readiness > span {
+    grid-column: auto;
+  }
+  .decision-readiness-details summary {
+    padding-block: 10px;
+    min-height: 40px;
+  }
+  .decision-section-heading {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .decision-section-heading h3 {
+    font-size: 22px;
+  }
+  .decision-section-heading > .text-button {
+    min-height: 32px;
+  }
+  .decision-stage-list {
+    overflow-x: auto;
+  }
+  .decision-stage-list > button {
+    padding: 15px 12px;
+    min-width: 104px;
+    min-height: 142px;
+  }
+  .decision-stage-name {
+    font-size: 15px;
+  }
+  .decision-stage-caption {
+    font-size: 12px;
+  }
+  .decision-stage-risk {
+    font-size: 12px;
+    max-width: 12ch;
+  }
+  .decision-metric-switch > button {
+    padding: 12px 8px;
+  }
+  .decision-metric-switch span {
+    line-height: 1.4;
+    min-height: 35px;
+  }
+  .decision-metric-switch strong {
+    font-size: 22px;
+  }
+  .decision-chart {
+    margin-inline: -5px;
+  }
+  .decision-chart svg {
+    min-height: auto;
+  }
+  .decision-chart-axis {
+    font-size: 17px;
+  }
+  .decision-chart-value,
+  .decision-chart-estimate {
+    font-size: 18px;
+  }
+  .decision-chart-key {
+    gap: 8px 16px;
+  }
+  .decision-validation {
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .decision-validation > div:first-child {
+    grid-column: 1 / -1;
+  }
+  .decision-evidence-gaps {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    padding-top: 24px;
+    margin-top: 30px;
+  }
+  .decision-output-comparison > div {
+    grid-template-columns: minmax(0, 1fr) 94px;
+    gap: 6px 12px;
+    margin-bottom: 18px;
+  }
+  .decision-output-comparison > div > span {
+    grid-column: 1;
+  }
+  .decision-output-comparison > div > div {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .decision-output-comparison > div > strong {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+  .decision-impact-reading {
+    padding: 20px;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .decision-impact-reading > strong {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 34px;
+  }
+  .decision-interventions > div {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 10px;
+  }
+  .decision-interventions > div > span:first-child {
+    grid-column: 1;
+  }
+  .decision-interventions > div > span:nth-child(2) {
+    grid-column: 1;
+  }
+  .decision-source-button {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+  .decision-center table {
+    min-width: 330px;
+  }
+  .decision-center table th,
+  .decision-center table td {
+    padding: 12px 7px;
+  }
+  .decision-economics dl > div {
+    gap: 18px;
+  }
+  .decision-economics dt {
+    max-width: 55%;
+  }
+  .decision-result-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .decision-center *,
+  .decision-center *::before {
+    transition: none;
+  }
+}

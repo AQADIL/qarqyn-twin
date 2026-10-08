@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { analyze, simulate, optimize, planTarget } from './analytics.js';
 import { digest, checkPassword, hashPassword } from './db.js';
 import { assistantHistorySchema, createAssistant } from './ai.js';
+import { forecast } from './forecast.js';
+import { evaluateImpact, impactSchema } from './impact.js';
 import {
   parse,
   fail,
@@ -260,6 +262,23 @@ export function createApp(db, config) {
     const d = dataset(req, req.params.id);
     const date = req.query.date ? parse(dateSchema, req.query.date) : null;
     res.json({ ...analyze(d.data, date), datasetId: d.id, version: d.version, name: d.name });
+  });
+  const forecastCache = new Map();
+  app.get('/api/forecast/:id', (req, res) => {
+    const d = dataset(req, req.params.id);
+    const key = `${d.id}:${d.version}`;
+    if (!forecastCache.has(key)) {
+      if (forecastCache.size >= 24) forecastCache.delete(forecastCache.keys().next().value);
+      forecastCache.set(key, forecast(d.data));
+    }
+    res.json({ ...forecastCache.get(key), datasetId: d.id, datasetVersion: d.version });
+  });
+  app.post('/api/impact', (req, res) => {
+    const input = parse(impactSchema, req.body);
+    const d = dataset(req, input.datasetId);
+    if (input.expectedDatasetVersion !== d.version)
+      fail(409, 'Данные изменились. Обновите расчёт для текущей версии.');
+    res.json({ ...evaluateImpact(d.data, input), datasetVersion: d.version });
   });
   app.post('/api/simulate', (req, res) => {
     const input = parse(simulationSchema, req.body);

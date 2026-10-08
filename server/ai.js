@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { analyze, simulate, optimize } from './analytics.js';
+import { forecast } from './forecast.js';
 import { fail, parse } from './schema.js';
 
 export const assistantHistorySchema = z
@@ -95,7 +96,9 @@ export function createAssistant(db, config, fetcher = fetch) {
       };
     });
     const recoveryByStage = new Map(recoveryLimits.map((limit) => [limit.stageId, limit]));
-    const comparison = optimize(data, 8, 8)
+    const canSimulate = measured.every((stage) => stage.defectPct !== null);
+    const projection = forecast(data);
+    const comparison = (canSimulate ? optimize(data, 8, 8) : [])
       .map((option) => {
         const input = {
           ...option.input,
@@ -143,6 +146,34 @@ export function createAssistant(db, config, fetcher = fetch) {
         excludedPlannedMinutes: recoveryByStage.get(s.id).excludedPlannedMinutes
       })),
       comparison,
+      forecast: {
+        period: projection.periodLabel,
+        readiness: projection.readiness,
+        summary: projection.summary,
+        stages: projection.stages
+          .filter((stage) => stage.nextOutput !== null)
+          .map((stage) => ({
+            stageId: stage.stageId,
+            name: stage.name,
+            metrics: ['output', 'quality', 'downtime'].map((key) => ({
+              label: stage[key].label,
+              estimate: stage[key].estimate,
+              unit: stage[key].unit,
+              scope: stage[key].scope,
+              observations: stage[key].observationCount,
+              method: stage[key].methodLabel,
+              validation: {
+                status: stage[key].validation.status,
+                folds: stage[key].validation.folds,
+                mae: stage[key].validation.mae,
+                baselineMae: stage[key].validation.baselineMae
+              },
+              sourceIds: stage[key].sourceIds
+            }))
+          })),
+        limitations: projection.limitations
+      },
+      scenarioAvailable: canSimulate,
       records: a.records
     };
     const payload = {

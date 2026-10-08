@@ -9,9 +9,11 @@ import Data from './Data.jsx';
 import Incidents from './Incidents.jsx';
 import Assistant from './Assistant.jsx';
 import TargetPlanner from './TargetPlanner.jsx';
+import DecisionCenter from './DecisionCenter.jsx';
 
 const pages = {
   overview: ['Производство', 'overview'],
+  decisions: ['Риски и эффект', 'decisions'],
   target: ['План выпуска', 'target'],
   lab: ['Сценарии', 'lab'],
   incidents: ['Отклонения', 'incident'],
@@ -37,6 +39,17 @@ export default function App() {
     [date, setDate] = useState('');
   const [evidence, setEvidence] = useState(null),
     [toast, setToast] = useState('');
+  useEffect(() => {
+    function expired() {
+      setSession(null);
+      setEvidence(null);
+      setDatasetId('allur');
+      setDate('');
+      setRestoring(false);
+    }
+    window.addEventListener('qarqyn:session-expired', expired);
+    return () => window.removeEventListener('qarqyn:session-expired', expired);
+  }, []);
   const datasets = useResource(session ? '/datasets' : null, revision);
   const dataset = useResource(session ? `/datasets/${datasetId}` : null, revision);
   const analysis = useResource(
@@ -206,7 +219,9 @@ export default function App() {
                 <Icon name={icon} />
                 <span>{label}</span>
                 {key === 'incidents' && a && <small>{a.findings.length}</small>}
-                {(key === 'target' || (key === 'assistant' && session.aiAvailable && canWrite)) && (
+                {(key === 'decisions' ||
+                  key === 'target' ||
+                  (key === 'assistant' && session.aiAvailable && canWrite)) && (
                   <small className="feature-new">NEW</small>
                 )}
               </a>
@@ -311,6 +326,14 @@ export default function App() {
                   />
                 )}{' '}
                 {page === 'lab' && <Lab analysis={a} canWrite={canWrite} notify={setToast} />}{' '}
+                {page === 'decisions' && (
+                  <DecisionCenter
+                    key={dataset.data.id}
+                    dataset={dataset.data}
+                    notify={setToast}
+                    onEvidence={(ids) => setEvidence({ ids })}
+                  />
+                )}
                 {page === 'target' && (
                   <TargetPlanner
                     analysis={a}

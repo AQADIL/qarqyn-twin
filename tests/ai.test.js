@@ -37,6 +37,36 @@ const insight = {
     interventions: [{ stageId: 'painting', recoverMinutes: 20, defectPct: 2 }]
   }
 };
+
+test('AI receives measured forecast limits and can explain missing quality without fake scenarios', async () => {
+  const db = openDatabase(':memory:', config);
+  const missing = structuredClone(data);
+  missing.quality = missing.quality.filter((row) => row.stageId !== 'painting');
+  const response = {
+    ...insight,
+    observations: [
+      { title: 'Missing quality', explanation: 'No measured quality', sourceIds: ['P2'] }
+    ],
+    proposal: null
+  };
+  try {
+    const assistant = createAssistant(db, config, async (url, options) => {
+      const context = JSON.parse(JSON.parse(options.body).input[0].content);
+      assert.equal(context.scenarioAvailable, false);
+      assert.deepEqual(context.comparison, []);
+      assert.equal(context.forecast.readiness.status, 'provisional');
+      const painting = context.forecast.stages.find((stage) => stage.stageId === 'painting');
+      assert.equal(painting.metrics.find((metric) => metric.label === 'Доля брака').estimate, null);
+      assert.equal(painting.metrics[0].validation.mae, null);
+      return providerResponse(response);
+    });
+    const answer = await assistant.ask({ ...request, data: missing });
+    assert.equal(answer.proposal, null);
+    assert.equal(answer.summary, response.summary);
+  } finally {
+    db.close();
+  }
+});
 function providerResponse(value = insight, status = 'completed') {
   return {
     ok: true,

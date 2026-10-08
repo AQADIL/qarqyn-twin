@@ -1,5 +1,11 @@
 export function Icon({ name, size = 22, ...props }) {
   const paths = {
+    decisions: (
+      <>
+        <path d="M3 20V4m0 16h18M6 15l4-5 4 2 6-7M16 5h4v4" />
+        <path d="M10 18v-3m4 3v-2m4 2v-5" />
+      </>
+    ),
     target: (
       <>
         <path d="M3 21V4m0 17h18M7 17l5-5 4 2 5-8M16 6h5v5" />

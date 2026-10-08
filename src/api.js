@@ -2,7 +2,9 @@ let csrf = '';
 let sessionRefresh;
 export async function api(path, method = 'GET', data, signal) {
   if (method !== 'GET' && !csrf && !path.startsWith('/auth/')) {
-    sessionRefresh ||= api('/session').finally(() => { sessionRefresh = undefined; });
+    sessionRefresh ||= api('/session').finally(() => {
+      sessionRefresh = undefined;
+    });
     await sessionRefresh;
   }
   const response = await fetch(`/api${path}`, {
