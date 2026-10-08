@@ -3,11 +3,24 @@ import { api, format } from './api.js';
 import { Button, Field, ErrorBox, Loading } from './ui.jsx';
 import { Icon } from './icons.jsx';
 import './target-planner.css';
+import { openWorkflow, takeWorkflow, consumeWorkflow } from './workflow.js';
 import { stageImage } from './stage-assets.js';
 
-export default function TargetPlanner({ analysis, canWrite, notify, evidence, navigate }) {
-  const [hours, setHours] = useState(8);
-  const [observationHours, setObservationHours] = useState(8);
+export default function TargetPlanner({
+  analysis,
+  canWrite,
+  notify,
+  evidence,
+  navigate,
+  selectedDate
+}) {
+  const [handoff] = useState(() => takeWorkflow('target', analysis.datasetId));
+  useEffect(() => consumeWorkflow('target', handoff), [handoff]);
+  const [calculationDate, setCalculationDate] = useState(handoff?.date || selectedDate || '');
+  const [hours, setHours] = useState(handoff?.hours || analysis.targets.hoursPerShift);
+  const [observationHours, setObservationHours] = useState(
+    handoff?.observationHours || analysis.targets.hoursPerShift
+  );
   const [target, setTarget] = useState('');
   const [baseline, setBaseline] = useState(null);
   const [plan, setPlan] = useState(null);
@@ -16,7 +29,7 @@ export default function TargetPlanner({ analysis, canWrite, notify, evidence, na
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const calculation = useRef(null);
-  const contextKey = `${analysis.datasetId}:${analysis.version}:${hours}:${observationHours}:${target}`;
+  const contextKey = `${analysis.datasetId}:${analysis.version}:${hours}:${observationHours}:${target}:${calculationDate}`;
   const currentContext = useRef(contextKey);
   currentContext.current = contextKey;
   useEffect(() => {
@@ -30,13 +43,23 @@ export default function TargetPlanner({ analysis, canWrite, notify, evidence, na
     api(
       '/simulate',
       'POST',
-      { datasetId: analysis.datasetId, hours, observationHours, interventions: [] },
+      {
+        datasetId: analysis.datasetId,
+        hours,
+        observationHours,
+        interventions: [],
+        ...(calculationDate ? { date: calculationDate } : {})
+      },
       controller.signal
     )
       .then((result) => {
         if (controller.signal.aborted) return;
         setBaseline(result.baseline.output);
-        setTarget(String(Math.ceil(result.baseline.output * 1.02)));
+        setTarget(
+          handoff?.targetGoodOutput
+            ? String(handoff.targetGoodOutput)
+            : String(Math.ceil(result.baseline.output * 1.02))
+        );
       })
       .catch((e) => {
         if (!controller.signal.aborted) setError(e.message);
@@ -45,7 +68,7 @@ export default function TargetPlanner({ analysis, canWrite, notify, evidence, na
       controller.abort();
       calculation.current?.abort();
     };
-  }, [analysis.datasetId, analysis.version, hours, observationHours]);
+  }, [analysis.datasetId, analysis.version, hours, observationHours, calculationDate]);
   async function calculate(event) {
     event.preventDefault();
     calculation.current?.abort();
@@ -64,7 +87,8 @@ export default function TargetPlanner({ analysis, canWrite, notify, evidence, na
           datasetId: analysis.datasetId,
           hours,
           observationHours,
-          targetGoodOutput: Number(target)
+          targetGoodOutput: Number(target),
+          ...(calculationDate ? { date: calculationDate } : {})
         },
         controller.signal
       );
@@ -107,17 +131,33 @@ export default function TargetPlanner({ analysis, canWrite, notify, evidence, na
       </div>
       <div className="target-workspace">
         <form className="target-form" onSubmit={calculate}>
+          <Field label="Наблюдения для расчёта">
+            <select
+              value={calculationDate}
+              disabled={busy}
+              onChange={(event) => setCalculationDate(event.target.value)}
+            >
+              <option value="">Все наблюдения</option>
+              {analysis.dates.map((date) => (
+                <option key={date} value={date}>
+                  {date}
+                </option>
+              ))}
+            </select>
+          </Field>
           <Field label="Горизонт плана">
             <select
               value={hours}
               disabled={busy}
               onChange={(e) => setHours(Number(e.target.value))}
             >
-              {[8, 16, 40, 160].map((h) => (
-                <option key={h} value={h}>
-                  {h} часов
-                </option>
-              ))}
+              {[...new Set([analysis.targets.hoursPerShift, 8, 12, 16, 24, 40, 160])]
+                .sort((a, b) => a - b)
+                .map((h) => (
+                  <option key={h} value={h}>
+                    {h} часов
+                  </option>
+                ))}
             </select>
           </Field>
           <Field label="Период исходной строки" hint="Допущение: длительность строки неоднозначна">
@@ -126,8 +166,13 @@ export default function TargetPlanner({ analysis, canWrite, notify, evidence, na
               disabled={busy}
               onChange={(e) => setObservationHours(Number(e.target.value))}
             >
-              <option value={8}>8 часов · одна смена</option>
-              <option value={16}>16 часов · две смены</option>
+              {[...new Set([analysis.targets.hoursPerShift, 8, 12, 16, 24])]
+                .sort((a, b) => a - b)
+                .map((value) => (
+                  <option key={value} value={value}>
+                    {value} часов
+                  </option>
+                ))}
             </select>
           </Field>
           <Field
@@ -232,6 +277,21 @@ export default function TargetPlanner({ analysis, canWrite, notify, evidence, na
                       onClick={save}
                     >
                       {saved ? 'План сохранён' : saving ? 'Сохраняем…' : 'Сохранить как сценарий'}
+                    </Button>
+                    <Button
+                      onClick={() =>
+                        openWorkflow('decisions', {
+                          datasetId: analysis.datasetId,
+                          datasetVersion: analysis.version,
+                          view: 'impact',
+                          date: calculationDate,
+                          hours,
+                          observationHours,
+                          targetGoodOutput: plan.targetGoodOutput
+                        })
+                      }
+                    >
+                      Оценить эффект
                     </Button>
                     {saved && <Button onClick={() => navigate('lab')}>Открыть сценарии</Button>}
                   </div>

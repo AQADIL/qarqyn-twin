@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from './icons.jsx';
 import { api } from './api.js';
 
@@ -82,47 +82,124 @@ export function Field({ label, hint, children }) {
     </label>
   );
 }
-export function Modal({ title, children, onClose, wide = false }) {
+export function Modal({
+  title,
+  children,
+  onClose,
+  wide = false,
+  pending = false,
+  guardChanges = false
+}) {
   const ref = useRef(null);
+  const headingId = useId();
+  const [dirty, setDirty] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
   useEffect(() => {
     const el = ref.current;
     el.showModal();
     return () => el.close();
   }, []);
+  useEffect(() => {
+    if (!dirty || !guardChanges) return;
+    const warn = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty, guardChanges]);
+  function close() {
+    if (pending) return;
+    if (guardChanges && dirty) setConfirmClose(true);
+    else onClose();
+  }
   return (
     <dialog
       ref={ref}
       className={wide ? 'modal wide' : 'modal'}
-      onCancel={onClose}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          const r = e.currentTarget.getBoundingClientRect();
-          if (
-            e.clientX < r.left ||
-            e.clientX > r.right ||
-            e.clientY < r.top ||
-            e.clientY > r.bottom
-          )
-            onClose();
+      onCancel={(event) => {
+        event.preventDefault();
+        close();
+      }}
+      onChangeCapture={() => {
+        if (guardChanges) setDirty(true);
+      }}
+      onClickCapture={(event) => {
+        if (event.target.closest('[data-close-modal]')) {
+          event.preventDefault();
+          event.stopPropagation();
+          close();
         }
       }}
-      aria-labelledby="modal-heading"
+      onClick={(event) => {
+        if (event.target !== event.currentTarget) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        if (
+          event.clientX < rect.left ||
+          event.clientX > rect.right ||
+          event.clientY < rect.top ||
+          event.clientY > rect.bottom
+        )
+          close();
+      }}
+      aria-labelledby={headingId}
+      aria-busy={pending}
     >
       <header className="modal-head">
-        <h2 id="modal-heading">{title}</h2>
-        <button className="icon-button" onClick={onClose} aria-label="Закрыть">
+        <h2 id={headingId}>{title}</h2>
+        <button
+          type="button"
+          className="icon-button"
+          disabled={pending}
+          onClick={close}
+          aria-label="Закрыть"
+        >
           <Icon name="close" />
         </button>
       </header>
-      {children}
+      {confirmClose ? (
+        <section className="modal-discard" role="alert">
+          <h3>Изменения ещё не сохранены</h3>
+          <p>Вернуться к форме или закрыть её без сохранения?</p>
+          <div className="form-actions">
+            <Button onClick={() => setConfirmClose(false)} autoFocus>
+              Продолжить редактирование
+            </Button>
+            <Button tone="danger" onClick={onClose}>
+              Закрыть без сохранения
+            </Button>
+          </div>
+        </section>
+      ) : (
+        children
+      )}
     </dialog>
+  );
+}
+export function Pagination({ page, pageSize = 20, total, onChange, disabled = false }) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  useEffect(() => {
+    if (!disabled && page > pages) onChange(pages);
+  }, [page, pages, disabled, onChange]);
+  return (
+    <nav className="row-actions pagination" aria-label="Страницы списка">
+      <Button disabled={disabled || page <= 1} onClick={() => onChange(page - 1)}>
+        Назад
+      </Button>
+      <span role="status">
+        {page} / {pages} · записей: {total}
+      </span>
+      <Button disabled={disabled || page >= pages} onClick={() => onChange(page + 1)}>
+        Далее
+      </Button>
+    </nav>
   );
 }
 export function Confirm({ title, children, onConfirm, onClose }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   return (
-    <Modal title={title} onClose={onClose}>
+    <Modal title={title} onClose={onClose} pending={busy}>
       <p>{children}</p>
       <ErrorBox>{error}</ErrorBox>
       <div className="form-actions">
@@ -195,6 +272,9 @@ export function Evidence({ analysis, onClose, ids }) {
   );
 }
 export const labels = {
+  periodHours: 'Длительность записи, ч',
+  regime: 'Режим производства',
+  classification: 'Тип простоя',
   id: 'ID',
   date: 'Дата',
   stageId: 'Участок',

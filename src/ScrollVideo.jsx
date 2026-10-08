@@ -17,11 +17,8 @@ export default function ScrollVideo({ src, fallbackSrc, poster }) {
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [aspectRatio, setAspectRatio] = useState(16 / 9);
-  const [shortViewport, setShortViewport] = useState(
-    () => window.matchMedia('(max-height: 580px)').matches
-  );
   const reduced = useReducedMotion();
-  const manualPlayback = Boolean(reduced) || shortViewport;
+  const manualPlayback = Boolean(reduced);
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ['start start', 'end end']
@@ -105,13 +102,6 @@ export default function ScrollVideo({ src, fallbackSrc, poster }) {
     };
   }, [cancelSeek, clearFeedback]);
 
-  useEffect(() => {
-    const viewport = window.matchMedia('(max-height: 580px)');
-    const update = () => setShortViewport(viewport.matches);
-    viewport.addEventListener('change', update);
-    return () => viewport.removeEventListener('change', update);
-  }, []);
-
   useLayoutEffect(() => {
     stateRef.current.manual = manualPlayback;
     cancelSeek();
@@ -150,6 +140,9 @@ export default function ScrollVideo({ src, fallbackSrc, poster }) {
     if (!state.manual) {
       video.pause();
       scheduleSeek();
+    } else if (state.ready) {
+      const finalFrame = Math.max(0, video.duration - 0.04);
+      if (Math.abs(video.currentTime - finalFrame) > 0.05) video.currentTime = finalFrame;
     }
   }
 
@@ -187,7 +180,6 @@ export default function ScrollVideo({ src, fallbackSrc, poster }) {
             hidden={failed}
             muted
             playsInline
-            controls={manualPlayback}
             preload="metadata"
             onLoadStart={handleLoadStart}
             onLoadedMetadata={handleReady}

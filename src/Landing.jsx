@@ -3,6 +3,9 @@ import { motion, useScroll, useTransform, useReducedMotion } from 'motion/react'
 import { Brand, Icon } from './icons.jsx';
 import { Button } from './ui.jsx';
 import ScrollVideo from './ScrollVideo.jsx';
+import { ThemeTools } from './Theme.jsx';
+import { stageImage, stageImageSources } from './stage-assets.js';
+import ThemedImage from './ThemedImage.jsx';
 
 const processSteps = [
   {
@@ -72,7 +75,13 @@ function Story({ onOpen, busy }) {
             aria-pressed={selected === step.id}
           >
             <span className="process-order">0{index + 1}</span>
-            <img src={step.image} alt="" width="1024" height="1024" loading="lazy" />
+            <ThemedImage
+              light={stageImage(step.id)}
+              dark={stageImage(step.id, 'dark')}
+              lightSrcSet={stageImageSources(step.id)}
+              darkSrcSet={stageImageSources(step.id, 'dark')}
+              sizes="(max-width: 700px) 150px, 16vw"
+            />
             <span className="process-name">{step.title}</span>
             {index < processSteps.length - 1 && (
               <span className="process-arrow" aria-hidden="true">
@@ -126,12 +135,14 @@ function Hero({ onOpen, busy, error }) {
         )}
       </div>
       <motion.div className="hero-art" style={reduced ? undefined : { y, scale }}>
-        <img
-          src="/factory-hero.png"
-          alt="Авторская изометрическая иллюстрация автомобильного завода: роботы, кузова и сборочная линия"
-          width="1536"
-          height="1024"
-          fetchPriority="high"
+        <ThemedImage
+          light="/factory-hero.webp"
+          dark="/cosmic-hero.webp"
+          darkSrcSet="/cosmic-hero-768.webp 768w, /cosmic-hero.webp 1536w"
+          sizes="(max-width: 700px) 114vw, 72vw"
+          lightAlt="Авторская изометрическая иллюстрация автомобильного завода: роботы, кузова и сборочная линия"
+          darkAlt="Космическое оформление QARQYN: ракетный комплекс, роботизированная сборка и стартовая площадка"
+          priority
         />
       </motion.div>
     </section>
@@ -145,22 +156,23 @@ export default function Landing({ onOpen, onLogin, busy, error }) {
         К содержанию
       </a>
       <header className="landing-nav">
-        <a href="#product" aria-label="QARQYN главная">
+        <a className="landing-brand" href="#product" aria-label="QARQYN главная">
           <Brand />
         </a>
         <nav aria-label="Основная навигация">
           <a href="#product">Продукт</a>
           <a href="#assembly">Сборка</a>
           <a href="#mechanism">Как это работает</a>
-          <Button onClick={onLogin} icon="lock">
-            Войти
-          </Button>
         </nav>
+        <ThemeTools />
+        <Button className="landing-login" onClick={onLogin} icon="lock">
+          Войти
+        </Button>
       </header>
       <main id="main" tabIndex={-1}>
         <Hero onOpen={onOpen} busy={busy} error={error} />
         <ScrollVideo
-          src="/car-assembly-final.webm"
+          src="/car-assembly-web.webm"
           fallbackSrc="/car-assembly-final.mp4"
           poster="/car-assembly-final.webp"
         />

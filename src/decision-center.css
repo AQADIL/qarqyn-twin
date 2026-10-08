@@ -41,11 +41,14 @@
 }
 .decision-tabs {
   display: flex;
+  overflow-x: auto;
   gap: 28px;
   border-bottom: 1px solid var(--line);
   margin-bottom: 16px;
 }
 .decision-tabs button {
+  flex-shrink: 0;
+  white-space: nowrap;
   min-height: 44px;
   border: 0;
   border-bottom: 2px solid transparent;

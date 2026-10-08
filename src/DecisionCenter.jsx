@@ -3,10 +3,13 @@ import { api, downloadJson, format } from './api.js';
 import { Button, ErrorBox, Field, Loading, useResource } from './ui.jsx';
 import { Icon } from './icons.jsx';
 import './decision-center.css';
+import { openWorkflow, takeWorkflow, consumeWorkflow } from './workflow.js';
+import PilotReview from './PilotReview.jsx';
 
 const views = [
   { id: 'forecast', name: 'Прогноз' },
-  { id: 'impact', name: 'Эффект решения' }
+  { id: 'impact', name: 'Эффект решения' },
+  { id: 'pilot', name: 'Проверка результата' }
 ];
 const metrics = [
   { id: 'output', name: 'Выпуск', unit: 'шт.' },
@@ -14,7 +17,7 @@ const metrics = [
   { id: 'downtime', name: 'Простой оборудования', unit: 'мин' }
 ];
 
-export default function DecisionCenter({ dataset, notify, onEvidence }) {
+export default function DecisionCenter({ dataset, notify, onEvidence, selectedDate, canWrite }) {
   const normalizedDataset = {
     ...dataset.data,
     id: dataset.id,
@@ -27,12 +30,16 @@ export default function DecisionCenter({ dataset, notify, onEvidence }) {
       dataset={normalizedDataset}
       notify={notify}
       onEvidence={onEvidence}
+      selectedDate={selectedDate}
+      canWrite={canWrite}
     />
   );
 }
 
-function DecisionWorkspace({ dataset, notify, onEvidence }) {
-  const [view, setView] = useState('forecast');
+function DecisionWorkspace({ dataset, notify, onEvidence, selectedDate, canWrite }) {
+  const [handoff] = useState(() => takeWorkflow('decisions', dataset.id));
+  useEffect(() => consumeWorkflow('decisions', handoff), [handoff]);
+  const [view, setView] = useState(handoff?.view || 'forecast');
   const tabList = useRef(null);
   function moveTab(event) {
     const position = views.findIndex((item) => item.id === view);
@@ -89,7 +96,7 @@ function DecisionWorkspace({ dataset, notify, onEvidence }) {
         hidden={view !== 'forecast'}
         tabIndex={0}
       >
-        <ForecastPanel dataset={dataset} onEvidence={onEvidence} />
+        <ForecastPanel dataset={dataset} onEvidence={onEvidence} canWrite={canWrite} />
       </section>
       <section
         id="decision-panel-impact"
@@ -98,13 +105,29 @@ function DecisionWorkspace({ dataset, notify, onEvidence }) {
         hidden={view !== 'impact'}
         tabIndex={0}
       >
-        <ImpactPanel dataset={dataset} notify={notify} onEvidence={onEvidence} />
+        <ImpactPanel
+          dataset={dataset}
+          notify={notify}
+          onEvidence={onEvidence}
+          handoff={handoff}
+          selectedDate={selectedDate}
+          canWrite={canWrite}
+        />
+      </section>
+      <section
+        id="decision-panel-pilot"
+        role="tabpanel"
+        aria-labelledby="decision-tab-pilot"
+        hidden={view !== 'pilot'}
+        tabIndex={0}
+      >
+        <PilotReview dataset={dataset} onEvidence={onEvidence} />
       </section>
     </div>
   );
 }
 
-function ForecastPanel({ dataset, onEvidence }) {
+function ForecastPanel({ dataset, onEvidence, canWrite }) {
   const [revision, revise] = useState(0);
   const resource = useResource(
     `/forecast/${encodeURIComponent(dataset.id)}`,
@@ -216,6 +239,28 @@ function ForecastPanel({ dataset, onEvidence }) {
                   <span className="estimated">Ориентир следующего периода</span>
                 </div>
                 <p className="decision-scope">{metric.scope}</p>
+                {stage.regime?.label && <p className="decision-scope">{stage.regime.label}</p>}
+                {metric.diagnostics && (
+                  <details className="decision-details">
+                    <summary>Полнота и устойчивость наблюдений</summary>
+                    <p>
+                      Покрытие ожидаемых дат: {format(metric.diagnostics.observedCoveragePct, 1)}%.
+                      Последнее наблюдение:{' '}
+                      {metric.diagnostics.lastObservedDate
+                        ? shortDate(metric.diagnostics.lastObservedDate)
+                        : '—'}
+                      .
+                    </p>
+                    {metric.diagnostics.irregularSpacing && (
+                      <p>
+                        Интервалы между записями неодинаковы. Максимальный разрыв:{' '}
+                        {metric.diagnostics.maxCalendarGapDays} дн.
+                      </p>
+                    )}
+                    <p>{metric.diagnostics.drift?.label}</p>
+                    <p>{metric.diagnostics.intervalCoverage?.label}</p>
+                  </details>
+                )}
                 <div className="decision-validation">
                   <div>
                     <span>Метод</span>
@@ -309,6 +354,32 @@ function ForecastPanel({ dataset, onEvidence }) {
                     <div>
                       <h4>{risk.title}</h4>
                       <p>{risk.detail}</p>
+                      <div className="row-actions">
+                        <Button
+                          onClick={() =>
+                            openWorkflow('target', {
+                              datasetId: dataset.id,
+                              datasetVersion: dataset.version,
+                              stageId: stage.stageId
+                            })
+                          }
+                        >
+                          Найти план
+                        </Button>
+                        <Button
+                          disabled={!canWrite}
+                          onClick={() =>
+                            openWorkflow('incidents', {
+                              datasetId: dataset.id,
+                              stageId: stage.stageId,
+                              title: risk.title,
+                              description: `${risk.detail} Источники: ${risk.sourceIds.join(', ')}`
+                            })
+                          }
+                        >
+                          Создать задачу
+                        </Button>
+                      </div>
                       {risk.sourceIds.length > 0 && (
                         <button
                           className="text-button"
@@ -505,14 +576,20 @@ function shortDate(value) {
   return parts.length === 3 ? `${parts[2]}.${parts[1]}` : value;
 }
 
-function ImpactPanel({ dataset, notify, onEvidence }) {
-  const [hours, setHours] = useState(dataset.targets?.hoursPerShift || 8);
-  const [observationHours, setObservationHours] = useState(dataset.targets?.hoursPerShift || 8);
+function ImpactPanel({ dataset, notify, onEvidence, handoff, selectedDate, canWrite }) {
+  const [calculationDate, setCalculationDate] = useState(handoff?.date || selectedDate || '');
+  const [saving, setSaving] = useState(false);
+  const [hours, setHours] = useState(handoff?.hours || dataset.targets?.hoursPerShift || 8);
+  const [observationHours, setObservationHours] = useState(
+    handoff?.observationHours || dataset.targets?.hoursPerShift || 8
+  );
   const [target, setTarget] = useState('');
   const [realization, setRealization] = useState(100);
   const [periods, setPeriods] = useState('1');
   const [contribution, setContribution] = useState('');
   const [cost, setCost] = useState('');
+  const [recurring, setRecurring] = useState('0'),
+    [salesCap, setSalesCap] = useState('');
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
@@ -527,7 +604,10 @@ function ImpactPanel({ dataset, notify, onEvidence }) {
     Number(periods) <= 366 &&
     Number.isInteger(Number(periods)) &&
     (contribution === '' || (Number(contribution) >= 0 && Number(contribution) <= 1e12)) &&
-    (cost === '' || (Number(cost) >= 0 && Number(cost) <= 1e12));
+    (cost === '' || (Number(cost) >= 0 && Number(cost) <= 1e12)) &&
+    Number(recurring) >= 0 &&
+    Number(recurring) <= 1e12 &&
+    (salesCap === '' || (Number(salesCap) >= 0 && Number(salesCap) <= 1e6));
 
   useEffect(() => {
     if (initialized) return;
@@ -541,15 +621,16 @@ function ImpactPanel({ dataset, notify, onEvidence }) {
       {
         datasetId: dataset.id,
         expectedDatasetVersion: dataset.version,
-        hours: initialHours.current,
-        observationHours: initialHours.current,
-        targetGoodOutput: 1
+        hours,
+        observationHours,
+        targetGoodOutput: 1,
+        ...(calculationDate ? { date: calculationDate } : {})
       },
       controller.signal
     )
       .then((response) => {
         if (!active) return;
-        const possibleWholeTarget = Math.floor(response.maxOutput);
+        const possibleWholeTarget = handoff?.targetGoodOutput || Math.floor(response.maxOutput);
         setTarget(
           String(
             possibleWholeTarget > response.baselineOutput
@@ -569,7 +650,7 @@ function ImpactPanel({ dataset, notify, onEvidence }) {
       active = false;
       controller.abort();
     };
-  }, [dataset.id, dataset.version, initialized, retry]);
+  }, [dataset.id, dataset.version, initialized, retry, hours, observationHours, calculationDate]);
 
   useEffect(() => {
     if (!initialized) return;
@@ -587,10 +668,13 @@ function ImpactPanel({ dataset, notify, onEvidence }) {
       hours,
       observationHours,
       targetGoodOutput: Number(target),
+      ...(calculationDate ? { date: calculationDate } : {}),
       realizationPct: realization,
       periods: Number(periods),
       unitContribution: contribution === '' ? null : Number(contribution),
-      implementationCost: cost === '' ? null : Number(cost)
+      implementationCost: cost === '' ? null : Number(cost),
+      recurringCostPerPeriod: Number(recurring),
+      maxAdditionalSalesPerPeriod: salesCap === '' ? null : Number(salesCap)
     };
     const timer = setTimeout(() => {
       api('/impact', 'POST', input, controller.signal)
@@ -616,6 +700,7 @@ function ImpactPanel({ dataset, notify, onEvidence }) {
     dataset.id,
     dataset.version,
     initialized,
+    calculationDate,
     hours,
     observationHours,
     target,
@@ -623,6 +708,8 @@ function ImpactPanel({ dataset, notify, onEvidence }) {
     periods,
     contribution,
     cost,
+    recurring,
+    salesCap,
     retry,
     valid
   ]);
@@ -645,15 +732,24 @@ function ImpactPanel({ dataset, notify, onEvidence }) {
         }}
       >
         <h3>Условия решения</h3>
+        <Field label="Наблюдения для расчёта">
+          <select
+            value={calculationDate}
+            onChange={(event) => setCalculationDate(event.target.value)}
+          >
+            <option value="">Все наблюдения</option>
+            {[...new Set(dataset.production.map((row) => row.date))].sort().map((date) => (
+              <option key={date} value={date}>
+                {date}
+              </option>
+            ))}
+          </select>
+        </Field>
         <p>Начальная цель рассчитана из доступного резерва. Измените её под свою задачу.</p>
         <div className="decision-field-pair">
           <Field label="Горизонт расчёта">
-            <select
-              value={hours}
-              disabled={!initialized}
-              onChange={(event) => setHours(Number(event.target.value))}
-            >
-              {[...new Set([8, 16, 40, 160, initialHours.current])]
+            <select value={hours} onChange={(event) => setHours(Number(event.target.value))}>
+              {[...new Set([8, 12, 16, 24, 40, 160, initialHours.current])]
                 .sort((a, b) => a - b)
                 .map((value) => (
                   <option key={value} value={value}>
@@ -665,10 +761,9 @@ function ImpactPanel({ dataset, notify, onEvidence }) {
           <Field label="Период записи" hint="Допущение о длительности строки">
             <select
               value={observationHours}
-              disabled={!initialized}
               onChange={(event) => setObservationHours(Number(event.target.value))}
             >
-              {[...new Set([8, 16, initialHours.current])]
+              {[...new Set([8, 12, 16, 24, dataset.targets.hoursPerShift, observationHours])]
                 .sort((a, b) => a - b)
                 .map((value) => (
                   <option key={value} value={value}>
@@ -746,10 +841,7 @@ function ImpactPanel({ dataset, notify, onEvidence }) {
               onChange={(event) => setContribution(event.target.value)}
             />
           </Field>
-          <Field
-            label="Единовременные затраты на реализацию, ₸"
-            hint="Новые регулярные расходы модель не учитывает"
-          >
+          <Field label="Единовременные затраты на реализацию, ₸" hint="Разовая стоимость проекта">
             <input
               type="number"
               min="0"
@@ -758,6 +850,32 @@ function ImpactPanel({ dataset, notify, onEvidence }) {
               inputMode="decimal"
               value={cost}
               onChange={(event) => setCost(event.target.value)}
+            />
+          </Field>
+          <Field
+            label="Дополнительные расходы за период, ₸"
+            hint="Ноль означает выбранное допущение об отсутствии новых регулярных расходов"
+          >
+            <input
+              type="number"
+              min="0"
+              max="1000000000000"
+              step="any"
+              value={recurring}
+              onChange={(event) => setRecurring(event.target.value)}
+            />
+          </Field>
+          <Field
+            label="Подтверждённый дополнительный спрос за период, шт."
+            hint="Пусто: ограничение спроса не задано"
+          >
+            <input
+              type="number"
+              min="0"
+              max="1000000"
+              step="any"
+              value={salesCap}
+              onChange={(event) => setSalesCap(event.target.value)}
             />
           </Field>
         </details>
@@ -857,6 +975,49 @@ function ImpactPanel({ dataset, notify, onEvidence }) {
             {result.achievable && <Sensitivity result={result} />}
             <Economics economics={result.economics} periods={result.periods} />
             <div className="decision-result-actions">
+              <Button
+                disabled={
+                  !canWrite || busy || !valid || Boolean(error) || !result.simulationInput || saving
+                }
+                onClick={async () => {
+                  setSaving(true);
+                  setError('');
+                  try {
+                    await api('/scenarios', 'POST', {
+                      name: `Выпуск ${format(result.targetOutput, 2)} за ${result.hours} ч`,
+                      note: `Проверка эффекта: реализация ${result.realizationPct}%; расчёт ${result.modelVersion}.`,
+                      input: {
+                        ...result.simulationInput,
+                        interventions: result.simulationInput.interventions.map((item) => ({
+                          ...item,
+                          recoverMinutes: (item.recoverMinutes * result.realizationPct) / 100
+                        }))
+                      },
+                      expectedDatasetVersion: dataset.version
+                    });
+                    notify?.('Решение сохранено в сценариях');
+                  } catch (failure) {
+                    setError(failure.message);
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >
+                {saving ? 'Сохраняем…' : 'Сохранить сценарий'}
+              </Button>
+              <Button
+                disabled={!canWrite || busy || !valid || Boolean(error)}
+                onClick={() =>
+                  openWorkflow('incidents', {
+                    datasetId: dataset.id,
+                    stageId: result.bottleneck?.stageId || null,
+                    title: `Проверить план выпуска ${format(result.targetOutput, 2)}`,
+                    description: `Версия данных ${dataset.version}. Горизонт ${result.hours} ч; период наблюдения ${result.observationHours} ч; дата ${calculationDate || 'все'}. Условия: ${result.interventions.map((item) => `${item.stageName}: вернуть ${format(item.realizedRecoverMinutes, 2)} мин`).join('; ')}. Расчётный дополнительный выпуск ${format(result.totalGain, 2)} шт. Требуется проверка фактического результата.`
+                  })
+                }
+              >
+                Создать задачу
+              </Button>
               <Button
                 icon="download"
                 disabled={busy || !valid || Boolean(error)}
@@ -993,6 +1154,14 @@ function Economics({ economics, periods }) {
         <div>
           <dt>Затраты на реализацию</dt>
           <dd>{format(economics.implementationCost)} ₸</dd>
+        </div>
+        <div>
+          <dt>Регулярные расходы за все периоды</dt>
+          <dd>{format(economics.recurringCost)} ₸</dd>
+        </div>
+        <div>
+          <dt>Дополнительный выпуск, учтённый в продажах</dt>
+          <dd>{format(economics.soldAdditionalUnits, 2)} шт.</dd>
         </div>
         <div className="decision-net-effect">
           <dt>Эффект после затрат</dt>

@@ -1,5 +1,21 @@
 export function Icon({ name, size = 22, ...props }) {
   const paths = {
+    star: <path d="m12 2 2.3 7.7L22 12l-7.7 2.3L12 22l-2.3-7.7L2 12l7.7-2.3Z" />,
+    moon: <path d="M20.5 13.4A8.6 8.6 0 0 1 10.6 3.5 8.6 8.6 0 1 0 20.5 13.4Z" />,
+    sun: (
+      <>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" />
+      </>
+    ),
+    settings: (
+      <>
+        <path d="M4 6h16M4 12h16M4 18h16" />
+        <circle cx="8" cy="6" r="2" />
+        <circle cx="16" cy="12" r="2" />
+        <circle cx="10" cy="18" r="2" />
+      </>
+    ),
     decisions: (
       <>
         <path d="M3 20V4m0 16h18M6 15l4-5 4 2 6-7M16 5h4v4" />

@@ -3,9 +3,11 @@ import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { Icon } from './icons.jsx';
 import { Button } from './ui.jsx';
 import { format } from './api.js';
-import { stageImage, stageIcon } from './stage-assets.js';
+import { stageImage, stageImageSources, stageIcon } from './stage-assets.js';
+import { openWorkflow } from './workflow.js';
+import ThemedImage from './ThemedImage.jsx';
 
-export default function Overview({ analysis: a, evidence, navigate }) {
+export default function Overview({ analysis: a, evidence, navigate, selectedDate }) {
   const [selected, select] = useState('painting');
   const reduceMotion = useReducedMotion();
   const stage = a.stages.find((s) => s.id === selected) || a.stages[0];
@@ -63,11 +65,12 @@ export default function Overview({ analysis: a, evidence, navigate }) {
                       s.name}
                   </strong>
                 </span>
-                <motion.img
-                  src={stageImage(s.id)}
-                  alt=""
-                  width="1024"
-                  height="1024"
+                <ThemedImage
+                  light={stageImage(s.id)}
+                  dark={stageImage(s.id, 'dark')}
+                  lightSrcSet={stageImageSources(s.id)}
+                  darkSrcSet={stageImageSources(s.id, 'dark')}
+                  sizes="(max-width: 700px) 150px, 180px"
                   animate={{
                     y: !reduceMotion && stage.id === s.id ? -8 : 0,
                     scale: !reduceMotion && stage.id === s.id ? 1.07 : 1
@@ -163,7 +166,18 @@ export default function Overview({ analysis: a, evidence, navigate }) {
                       ? `Брак выше порога ${a.targets.maxDefectPct}%. Проверьте влияние на конечный поток.`
                       : 'Проверьте источники и сопоставьте показатели с другими участками.'}
                   </p>
-                  <Button tone="primary" onClick={() => navigate('lab')} icon="lab">
+                  <Button
+                    tone="primary"
+                    onClick={() =>
+                      openWorkflow('lab', {
+                        datasetId: a.datasetId,
+                        datasetVersion: a.version,
+                        date: selectedDate || undefined,
+                        stageId: stage.id
+                      })
+                    }
+                    icon="lab"
+                  >
                     Проверить сценарий
                   </Button>
                   <button className="text-button" onClick={() => evidence(stage.sourceIds)}>

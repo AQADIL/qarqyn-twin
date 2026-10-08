@@ -1,16 +1,39 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, format } from './api.js';
-import { Button, Field, ErrorBox, Loading, Modal, Confirm, Empty, useResource } from './ui.jsx';
+import { api, downloadJson, format } from './api.js';
+import {
+  Button,
+  Field,
+  ErrorBox,
+  Loading,
+  Modal,
+  Confirm,
+  Empty,
+  Pagination,
+  useResource
+} from './ui.jsx';
+import { openWorkflow, takeWorkflow, consumeWorkflow } from './workflow.js';
 import { Icon } from './icons.jsx';
 
-export default function Lab({ analysis, canWrite, notify }) {
-  const stages = analysis.stages.filter((s) => s.kind === 'production' && s.observations);
+export default function Lab({ analysis, canWrite, notify, selectedDate }) {
+  const [handoff] = useState(() => takeWorkflow('lab', analysis.datasetId));
+  useEffect(() => consumeWorkflow('lab', handoff), [handoff]);
+  const [savedPage, setSavedPage] = useState(1),
+    [historical, setHistorical] = useState(null);
   const [input, setInput] = useState({
     datasetId: analysis.datasetId,
-    hours: 8,
-    observationHours: 8,
-    interventions: []
+    hours: handoff?.hours || analysis.targets.hoursPerShift,
+    observationHours: handoff?.observationHours || analysis.targets.hoursPerShift,
+    interventions: handoff?.interventions || [],
+    ...(handoff?.date || selectedDate ? { date: handoff?.date || selectedDate } : {})
   });
+  const scopedAnalysis = useResource(
+    input.date ? `/analysis/${analysis.datasetId}?date=${input.date}` : null,
+    analysis.version
+  );
+  const currentAnalysis = input.date ? scopedAnalysis.data : analysis;
+  const stages = (currentAnalysis?.stages || analysis.stages).filter(
+    (stage) => stage.kind === 'production' && stage.observations
+  );
   const [result, setResult] = useState(null),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
@@ -19,8 +42,11 @@ export default function Lab({ analysis, canWrite, notify }) {
     [deleting, setDeleting] = useState(null);
   const [suggestions, setSuggestions] = useState(null),
     [optimizing, setOptimizing] = useState(false);
-  const saved = useResource(`/scenarios?datasetId=${analysis.datasetId}`, revision);
-  const recommendationKey = `${analysis.datasetId}:${analysis.version}:${input.hours}:${input.observationHours}`;
+  const saved = useResource(
+    `/scenarios?datasetId=${analysis.datasetId}&page=${savedPage}&pageSize=20`,
+    revision
+  );
+  const recommendationKey = `${analysis.datasetId}:${analysis.version}:${input.hours}:${input.observationHours}:${input.date || 'all'}`;
   const currentRecommendationKey = useRef(recommendationKey);
   currentRecommendationKey.current = recommendationKey;
   useEffect(() => {
@@ -78,7 +104,8 @@ export default function Lab({ analysis, canWrite, notify }) {
       const options = await api('/optimize', 'POST', {
         datasetId: input.datasetId,
         hours: input.hours,
-        observationHours: input.observationHours
+        observationHours: input.observationHours,
+        ...(input.date ? { date: input.date } : {})
       });
       if (requestKey === currentRecommendationKey.current) setSuggestions(options);
     } catch (e) {
@@ -99,10 +126,46 @@ export default function Lab({ analysis, canWrite, notify }) {
           {optimizing ? 'Сравниваем…' : 'Сравнить точки влияния'}
         </Button>
       </div>
-      <ErrorBox>{error}</ErrorBox>
+      <ErrorBox>{error || scopedAnalysis.error}</ErrorBox>
+      {currentAnalysis?.modelReadiness?.issues?.length > 0 && (
+        <div className="dataset-banner">
+          <div>
+            <strong>Для расчёта нужно уточнить данные</strong>
+            <p>{currentAnalysis.modelReadiness.issues.map((issue) => issue.detail).join(' ')}</p>
+            <p>
+              Проверьте период строки и записи качества/простоев. Расчёт использует выбранные ниже
+              условия.
+            </p>
+          </div>
+          <Button
+            onClick={() =>
+              openWorkflow('data', { datasetId: analysis.datasetId, date: input.date })
+            }
+          >
+            Открыть данные
+          </Button>
+        </div>
+      )}
       <div className="lab-layout">
         <section className="lab-controls">
           <div className="lab-period">
+            <Field label="Наблюдения для расчёта">
+              <select
+                value={input.date || ''}
+                onChange={(event) => {
+                  const { date, ...rest } = input;
+                  setInput(event.target.value ? { ...rest, date: event.target.value } : rest);
+                  setSuggestions(null);
+                }}
+              >
+                <option value="">Все наблюдения</option>
+                {analysis.dates.map((date) => (
+                  <option key={date} value={date}>
+                    {date}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="Горизонт расчёта">
               <select
                 value={input.hours}
@@ -111,11 +174,13 @@ export default function Lab({ analysis, canWrite, notify }) {
                   setInput({ ...input, hours: Number(e.target.value) });
                 }}
               >
-                {[8, 16, 40, 160].map((h) => (
-                  <option key={h} value={h}>
-                    {h} часов
-                  </option>
-                ))}
+                {[...new Set([analysis.targets.hoursPerShift, 8, 12, 16, 24, 40, 160])]
+                  .sort((a, b) => a - b)
+                  .map((h) => (
+                    <option key={h} value={h}>
+                      {h} часов
+                    </option>
+                  ))}
               </select>
             </Field>
             <Field label="Период исходной строки" hint="Допущение: в данных период неоднозначен">
@@ -126,14 +191,19 @@ export default function Lab({ analysis, canWrite, notify }) {
                   setInput({ ...input, observationHours: Number(e.target.value) });
                 }}
               >
-                <option value={8}>8 часов · одна смена</option>
-                <option value={16}>16 часов · две смены</option>
+                {[...new Set([analysis.targets.hoursPerShift, 8, 12, 16, 24])]
+                  .sort((a, b) => a - b)
+                  .map((value) => (
+                    <option key={value} value={value}>
+                      {value} часов
+                    </option>
+                  ))}
               </select>
             </Field>
           </div>
           {stages.map((s) => {
             const edit = input.interventions.find((x) => x.stageId === s.id);
-            const limit = analysis.recoveryLimits?.find((item) => item.stageId === s.id);
+            const limit = currentAnalysis?.recoveryLimits?.find((item) => item.stageId === s.id);
             const max = limit?.maxMinutes ?? 0;
             return (
               <div className="intervention" key={s.id}>
@@ -149,8 +219,8 @@ export default function Lab({ analysis, canWrite, notify }) {
                   }
                   hint={
                     limit
-                      ? `Доступно ${format(max, 1)} мин на период${limit.excludedPlannedMinutes ? `; плановое ТО ${format(limit.excludedPlannedMinutes, 1)} мин защищено` : ''}`
-                      : 'Обновите данные для получения доступного времени'
+                      ? `Доступно ${format(max, 1)} мин на период${limit.excludedPlannedMinutes ? `; плановое ТО ${format(limit.excludedPlannedMinutes, 1)} мин защищено` : ''}${limit.excludedUnknownMinutes ? `; ${format(limit.excludedUnknownMinutes, 1)} мин не классифицировано` : ''}`
+                      : 'Доступное время ещё не определено'
                   }
                 >
                   <input
@@ -170,13 +240,18 @@ export default function Lab({ analysis, canWrite, notify }) {
                       Целевая доля брака <b>{format(edit?.defectPct ?? s.defectPct, 2)}%</b>
                     </span>
                   }
-                  hint={`Исходная доля: ${format(s.defectPct, 2)}%`}
+                  hint={
+                    s.defectPct === null
+                      ? 'Качество неизвестно: добавьте наблюдение в данных'
+                      : `Исходная доля: ${format(s.defectPct, 2)}%`
+                  }
                 >
                   <input
                     aria-label={`${s.name}: целевая доля брака`}
                     type="range"
                     min="0"
                     max={Math.max(10, s.defectPct || 0)}
+                    disabled={s.defectPct === null}
                     step="0.01"
                     value={edit?.defectPct ?? s.defectPct ?? 0}
                     onChange={(e) => change(s.id, 'defectPct', Number(e.target.value))}
@@ -361,8 +436,8 @@ export default function Lab({ analysis, canWrite, notify }) {
         <ErrorBox>{saved.error}</ErrorBox>
         {saved.loading ? (
           <Loading />
-        ) : saved.data?.length ? (
-          saved.data.map((s) => (
+        ) : saved.data?.items.length ? (
+          saved.data.items.map((s) => (
             <article key={s.id}>
               <Icon name="source" size={28} />
               <div>
@@ -381,15 +456,15 @@ export default function Lab({ analysis, canWrite, notify }) {
               <div className="row-actions">
                 <Button
                   onClick={() => {
-                    setInput(s.input);
-                    window.scrollTo({ top: 0, behavior: 'instant' });
+                    setHistorical(s);
                   }}
                 >
-                  Открыть
+                  Открыть снимок
                 </Button>
                 <button
                   className="icon-button"
                   aria-label={`Изменить ${s.name}`}
+                  disabled={!canWrite}
                   onClick={() => setSaving({ ...s, expectedDatasetVersion: analysis.version })}
                 >
                   <Icon name="edit" />
@@ -397,6 +472,7 @@ export default function Lab({ analysis, canWrite, notify }) {
                 <button
                   className="icon-button"
                   aria-label={`Удалить ${s.name}`}
+                  disabled={!canWrite}
                   onClick={() => setDeleting(s)}
                 >
                   <Icon name="delete" />
@@ -409,7 +485,31 @@ export default function Lab({ analysis, canWrite, notify }) {
             Сравните условия и сохраните перспективный сценарий вместе с расчётом.
           </Empty>
         )}
+        {saved.data && (
+          <Pagination
+            page={savedPage}
+            pageSize={20}
+            total={saved.data.total}
+            onChange={setSavedPage}
+          />
+        )}
       </section>
+      {historical && (
+        <HistoricalScenario
+          scenario={historical}
+          analysis={analysis}
+          canWrite={canWrite}
+          onClose={() => setHistorical(null)}
+          onApply={(oldInput) => {
+            setInput(oldInput);
+            setHistorical(null);
+            notify(
+              'Параметры снимка применены к текущей версии. Сохранённый результат не изменён.'
+            );
+            window.scrollTo({ top: 0, behavior: 'instant' });
+          }}
+        />
+      )}
       {saving && (
         <SaveScenario
           item={saving}
@@ -443,7 +543,12 @@ function SaveScenario({ item, onSave, onClose }) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   return (
-    <Modal title={item.id ? 'Изменить решение' : 'Сохранить решение'} onClose={onClose}>
+    <Modal
+      title={item.id ? 'Изменить решение' : 'Сохранить решение'}
+      onClose={onClose}
+      pending={busy}
+      guardChanges
+    >
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -490,7 +595,7 @@ function SaveScenario({ item, onSave, onClose }) {
         )}
         <ErrorBox>{error}</ErrorBox>
         <div className="form-actions">
-          <Button type="button" onClick={onClose}>
+          <Button type="button" data-close-modal disabled={busy}>
             Отмена
           </Button>
           <Button tone="primary" disabled={busy}>
@@ -498,6 +603,145 @@ function SaveScenario({ item, onSave, onClose }) {
           </Button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+function HistoricalScenario({ scenario, analysis, canWrite, onClose, onApply }) {
+  const resource = useResource(`/scenarios/${scenario.id}`);
+  const saved = resource.data || scenario;
+  const [current, setCurrent] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function compare() {
+    setBusy(true);
+    setError('');
+    try {
+      setCurrent(await api('/simulate', 'POST', saved.input));
+    } catch (failure) {
+      setError(failure.message);
+      setCurrent(null);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal title={saved.name} onClose={onClose} wide pending={busy}>
+      <p>
+        Сохранённый результат: версия {saved.datasetVersion}. Текущая версия: {analysis.version}.
+        Исторические цифры при просмотре не изменяются.
+      </p>
+      <ErrorBox>{resource.error || error}</ErrorBox>
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Показатель</th>
+              <th>Снимок v{saved.datasetVersion}</th>
+              <th>{current ? `Пересчёт v${current.datasetVersion}` : 'Текущие данные'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>Базовый выпуск</th>
+              <td>{format(saved.result.baseline.output, 2)}</td>
+              <td>{format(current?.baseline.output, 2)}</td>
+            </tr>
+            <tr>
+              <th>С изменениями</th>
+              <td>{format(saved.result.scenario.output, 2)}</td>
+              <td>{format(current?.scenario.output, 2)}</td>
+            </tr>
+            <tr>
+              <th>Прирост</th>
+              <td>{format(saved.result.delta, 2)}</td>
+              <td>{format(current?.delta, 2)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>{saved.note}</p>
+      <p>
+        Горизонт: {saved.input.hours} ч. Период строки: {saved.input.observationHours} ч.
+        Наблюдения: {saved.input.date || 'все даты'}.
+      </p>
+      <div className="row-actions">
+        <Button disabled={busy} onClick={compare}>
+          {busy ? 'Пересчитываем…' : 'Сравнить с текущей версией'}
+        </Button>
+        <Button disabled={busy} onClick={() => onApply(saved.input)}>
+          Открыть условия в лаборатории
+        </Button>
+      </div>
+      {current && current.datasetVersion !== analysis.version && (
+        <p role="status">
+          Набор обновился во время сравнения. Пересчёт выполнен на версии {current.datasetVersion}.
+        </p>
+      )}
+      {saved.datasetSnapshot && (
+        <Button
+          onClick={() =>
+            downloadJson(saved.datasetSnapshot.data, `qarqyn-source-v${saved.datasetVersion}.json`)
+          }
+        >
+          Скачать исходные записи снимка
+        </Button>
+      )}
+      <details className="methodology">
+        <summary>Условия и источники снимка</summary>
+        <pre>{JSON.stringify(saved.input, null, 2)}</pre>
+        {saved.datasetSnapshot ? (
+          <>
+            <p>
+              Исходные данные версии {saved.datasetSnapshot.version}:{' '}
+              {saved.datasetSnapshot.data.name}.
+            </p>
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Категория</th>
+                    <th>Количество записей</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {['production', 'quality', 'downtime', 'plans'].map((key) => (
+                    <tr key={key}>
+                      <th>
+                        {
+                          {
+                            production: 'Производство',
+                            quality: 'Качество',
+                            downtime: 'Простои',
+                            plans: 'Планы'
+                          }[key]
+                        }
+                      </th>
+                      <td>{saved.datasetSnapshot.data[key].length}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <p>Снимок исходных записей загружается или недоступен.</p>
+        )}
+      </details>
+      <Button
+        disabled={!canWrite || busy}
+        onClick={() =>
+          openWorkflow('incidents', {
+            datasetId: analysis.datasetId,
+            datasetVersion: saved.datasetVersion,
+            title: saved.name,
+            description: `Сценарий ${saved.id}, версия ${saved.datasetVersion}. ${saved.note || ''}`,
+            stageId: null
+          })
+        }
+      >
+        Создать задачу по решению
+      </Button>
     </Modal>
   );
 }

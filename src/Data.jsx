@@ -1,7 +1,18 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, downloadJson, format } from './api.js';
+import ImportData from './ImportData.jsx';
 import { Icon } from './icons.jsx';
-import { Button, Field, Modal, Confirm, ErrorBox, labels } from './ui.jsx';
+import {
+  Button,
+  Field,
+  Modal,
+  Confirm,
+  ErrorBox,
+  Loading,
+  Pagination,
+  labels,
+  useResource
+} from './ui.jsx';
 const groups = {
   production: 'Производство',
   quality: 'Качество',
@@ -9,14 +20,26 @@ const groups = {
   plans: 'План моделей'
 };
 const columns = {
-  production: ['id', 'date', 'stageId', 'line', 'plan', 'actual', 'runtimeHours', 'utilizationPct'],
+  production: [
+    'id',
+    'date',
+    'stageId',
+    'line',
+    'plan',
+    'actual',
+    'runtimeHours',
+    'utilizationPct',
+    'periodHours',
+    'regime'
+  ],
   quality: ['id', 'date', 'stageId', 'produced', 'defects', 'reportedPct'],
-  downtime: ['id', 'date', 'stageId', 'equipment', 'reason', 'minutes'],
+  downtime: ['id', 'date', 'stageId', 'equipment', 'reason', 'minutes', 'classification'],
   plans: ['id', 'model', 'quantity']
 };
 const numeric = new Set([
   'plan',
   'actual',
+  'periodHours',
   'runtimeHours',
   'utilizationPct',
   'produced',
@@ -33,6 +56,39 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [deleteDataset, setDeleteDataset] = useState(false);
+  const [importing, setImporting] = useState(null),
+    [history, setHistory] = useState(false),
+    [search, setSearch] = useState(''),
+    [dateFilter, setDateFilter] = useState(''),
+    [sort, setSort] = useState('date'),
+    [direction, setDirection] = useState(1),
+    [page, setPage] = useState(1);
+  useEffect(() => setPage(1), [search, dateFilter, group, sort, direction]);
+  const filteredRows = dataset.data[group]
+    .map((item, index) => ({ item, index }))
+    .filter(
+      ({ item }) =>
+        (group === 'plans' || !dateFilter || item.date === dateFilter) &&
+        Object.values(item)
+          .join(' ')
+          .toLocaleLowerCase('ru')
+          .includes(search.toLocaleLowerCase('ru'))
+    )
+    .sort((left, right) => {
+      const a = left.item[sort],
+        b = right.item[sort];
+      return (
+        direction *
+        (typeof a === 'number' && typeof b === 'number'
+          ? a - b
+          : String(a ?? '').localeCompare(String(b ?? ''), 'ru', { numeric: true }))
+      );
+    });
+  const visibleRows = filteredRows.slice((page - 1) * 25, page * 25);
+  useEffect(
+    () => setPage((current) => Math.min(current, Math.max(1, Math.ceil(filteredRows.length / 25)))),
+    [filteredRows.length]
+  );
   const file = useRef(null),
     editable = canWrite && !dataset.seed;
   async function copy() {
@@ -52,28 +108,10 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
       setBusy(false);
     }
   }
-  async function importFile(e) {
-    const selected = e.target.files?.[0];
-    if (!selected) return;
-    setError('');
-    setBusy(true);
-    try {
-      if (selected.size > 2 * 1024 * 1024) throw new Error('Размер файла не должен превышать 2 МБ');
-      const data = JSON.parse(await selected.text());
-      const result = await api('/datasets', 'POST', data);
-      await refresh();
-      selectDataset(result.id);
-      notify('Набор импортирован');
-    } catch (e) {
-      setError(
-        e instanceof SyntaxError
-          ? 'Файл должен содержать корректный JSON. Скачайте текущий набор как пример формата.'
-          : e.message
-      );
-    } finally {
-      setBusy(false);
-      e.target.value = '';
-    }
+  function importFile(event) {
+    const selected = event.target.files?.[0];
+    if (selected) setImporting(selected);
+    event.target.value = '';
   }
   async function updateData(data, snapshot) {
     await api(`/datasets/${snapshot.id}`, 'PUT', { version: snapshot.version, data });
@@ -88,6 +126,7 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
           <p>{dataset.data.source.description}</p>
         </div>
         <div className="row-actions">
+          <Button onClick={() => setHistory(true)}>История версий</Button>
           <Button icon="download" onClick={() => downloadJson(dataset.data, 'qarqyn-dataset.json')}>
             JSON
           </Button>
@@ -97,9 +136,9 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
           <input
             ref={file}
             type="file"
-            accept=".json,application/json"
+            accept=".json,.csv,.xlsx,application/json,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             className="visually-hidden"
-            aria-label="Импортировать JSON"
+            aria-label="Импортировать JSON, CSV или XLSX"
             onChange={importFile}
           />
         </div>
@@ -141,6 +180,26 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
             id={`tab-${key}`}
             key={key}
             role="tab"
+            tabIndex={group === key ? 0 : -1}
+            onKeyDown={(event) => {
+              const keys = Object.keys(groups),
+                index = keys.indexOf(group);
+              const next =
+                event.key === 'ArrowRight'
+                  ? (index + 1) % keys.length
+                  : event.key === 'ArrowLeft'
+                    ? (index + keys.length - 1) % keys.length
+                    : event.key === 'Home'
+                      ? 0
+                      : event.key === 'End'
+                        ? keys.length - 1
+                        : null;
+              if (next !== null) {
+                event.preventDefault();
+                setGroup(keys[next]);
+                document.getElementById(`tab-${keys[next]}`)?.focus();
+              }
+            }}
             aria-selected={group === key}
             aria-controls="data-panel"
             onClick={() => setGroup(key)}
@@ -161,26 +220,67 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
             Добавить запись
           </Button>
         </div>
+        <div className="form-grid">
+          <Field label="Поиск по записям">
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </Field>
+          {group !== 'plans' && (
+            <Field label="Дата">
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(event) => setDateFilter(event.target.value)}
+              />
+            </Field>
+          )}
+        </div>
         <div className="table-scroll">
           <table>
             <thead>
               <tr>
                 {columns[group].map((key) => (
-                  <th key={key}>{labels[key]}</th>
+                  <th
+                    key={key}
+                    aria-sort={
+                      sort === key ? (direction === 1 ? 'ascending' : 'descending') : 'none'
+                    }
+                  >
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => {
+                        setDirection(sort === key ? -direction : 1);
+                        setSort(key);
+                      }}
+                    >
+                      {labels[key]}
+                      {sort === key ? (direction === 1 ? ' ↑' : ' ↓') : ''}
+                    </button>
+                  </th>
                 ))}
                 {editable && <th>Действия</th>}
               </tr>
             </thead>
             <tbody>
-              {dataset.data[group].map((r, index) => (
+              {visibleRows.map(({ item: r, index }) => (
                 <tr key={r.id}>
                   {columns[group].map((key) => (
                     <td key={key}>
                       {key === 'stageId'
                         ? dataset.data.stages.find((s) => s.id === r[key])?.name
-                        : numeric.has(key)
-                          ? format(r[key], 2)
-                          : r[key]}
+                        : key === 'classification'
+                          ? {
+                              planned: 'Плановое',
+                              unplanned: 'Внеплановое',
+                              unknown: 'Не классифицировано'
+                            }[r[key]] || 'По исходной записи'
+                          : numeric.has(key)
+                            ? format(r[key], 2)
+                            : r[key]}
                     </td>
                   ))}
                   {editable && (
@@ -207,9 +307,36 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
               ))}
             </tbody>
           </table>
-          {!dataset.data[group].length && <p className="empty">Записей нет.</p>}
+          {!filteredRows.length && <p className="empty">Нет записей по выбранным условиям.</p>}
         </div>
+        <Pagination page={page} pageSize={25} total={filteredRows.length} onChange={setPage} />
       </section>
+      {importing && (
+        <ImportData
+          file={importing}
+          dataset={dataset}
+          initialGroup={group}
+          onClose={() => setImporting(null)}
+          onImported={async (id) => {
+            setImporting(null);
+            await refresh();
+            selectDataset(id);
+            notify('Набор импортирован после проверки');
+          }}
+        />
+      )}
+      {history && (
+        <DatasetHistory
+          dataset={dataset}
+          editable={editable}
+          onClose={() => setHistory(false)}
+          onRestored={async () => {
+            await refresh();
+            setHistory(false);
+            notify('Версия восстановлена как новая запись истории');
+          }}
+        />
+      )}
       <div className="data-footnote">
         <Icon name="source" />
         <p>
@@ -285,11 +412,19 @@ export default function Data({ dataset, canWrite, refresh, selectDataset, notify
   );
 }
 function RowForm({ group, row, stages, onClose, onSave }) {
-  const [values, setValues] = useState(row.item),
+  const [values, setValues] = useState({
+      ...row.item,
+      ...(group === 'downtime' && row.index < 0 ? { classification: 'unknown' } : {})
+    }),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
   return (
-    <Modal title={row.index < 0 ? 'Добавить запись' : `Изменить ${row.item.id}`} onClose={onClose}>
+    <Modal
+      title={row.index < 0 ? 'Добавить запись' : `Изменить ${row.item.id}`}
+      onClose={onClose}
+      pending={busy}
+      guardChanges
+    >
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -298,7 +433,10 @@ function RowForm({ group, row, stages, onClose, onSave }) {
           try {
             const item = {};
             for (const key of columns[group]) {
-              if (key === 'reportedPct' && (values[key] === undefined || values[key] === ''))
+              if (
+                ['reportedPct', 'periodHours', 'regime', 'classification'].includes(key) &&
+                (values[key] === undefined || values[key] === '')
+              )
                 continue;
               item[key] = numeric.has(key) ? Number(values[key]) : values[key];
             }
@@ -323,7 +461,17 @@ function RowForm({ group, row, stages, onClose, onSave }) {
                     : null
               }
             >
-              {key === 'stageId' ? (
+              {key === 'classification' ? (
+                <select
+                  value={values.classification ?? ''}
+                  onChange={(event) => setValues({ ...values, classification: event.target.value })}
+                >
+                  <option value="">По исходной причине · тип не задан</option>
+                  <option value="unknown">Не классифицировано</option>
+                  <option value="planned">Плановое обслуживание</option>
+                  <option value="unplanned">Внеплановый простой</option>
+                </select>
+              ) : key === 'stageId' ? (
                 <select
                   required
                   value={values[key] || ''}
@@ -342,14 +490,29 @@ function RowForm({ group, row, stages, onClose, onSave }) {
                 </select>
               ) : (
                 <input
-                  required={key !== 'reportedPct'}
+                  required={
+                    !['reportedPct', 'periodHours', 'regime', 'classification'].includes(key)
+                  }
                   type={numeric.has(key) ? 'number' : key === 'date' ? 'date' : 'text'}
                   step={
-                    ['runtimeHours', 'utilizationPct', 'minutes', 'reportedPct'].includes(key)
+                    [
+                      'runtimeHours',
+                      'periodHours',
+                      'utilizationPct',
+                      'minutes',
+                      'reportedPct'
+                    ].includes(key)
                       ? 'any'
                       : '1'
                   }
-                  min={numeric.has(key) ? '0' : undefined}
+                  min={key === 'periodHours' ? 1 : numeric.has(key) ? '0' : undefined}
+                  max={
+                    key === 'periodHours' || key === 'runtimeHours'
+                      ? 24
+                      : ['utilizationPct', 'reportedPct'].includes(key)
+                        ? 100
+                        : undefined
+                  }
                   maxLength={key === 'reason' ? 500 : 100}
                   value={values[key] ?? ''}
                   onChange={(e) => setValues({ ...values, [key]: e.target.value })}
@@ -360,7 +523,7 @@ function RowForm({ group, row, stages, onClose, onSave }) {
         </div>
         <ErrorBox>{error}</ErrorBox>
         <div className="form-actions">
-          <Button type="button" onClick={onClose}>
+          <Button type="button" data-close-modal disabled={busy}>
             Отмена
           </Button>
           <Button tone="primary" disabled={busy}>
@@ -371,9 +534,158 @@ function RowForm({ group, row, stages, onClose, onSave }) {
     </Modal>
   );
 }
+function DatasetHistory({ dataset, editable, onClose, onRestored }) {
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState(null);
+  const [restoring, setRestoring] = useState(false);
+  const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const history = useResource(`/datasets/${dataset.id}/versions?page=${page}&pageSize=15`);
+  const snapshot = useResource(selected ? `/datasets/${dataset.id}/versions/${selected}` : null);
+  async function restore() {
+    setRestoring(true);
+    setError('');
+    try {
+      await api(`/datasets/${dataset.id}/restore`, 'POST', {
+        version: dataset.version,
+        restoreVersion: selected
+      });
+      await onRestored();
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setRestoring(false);
+    }
+  }
+  return (
+    <Modal title="История данных" onClose={onClose} wide pending={restoring}>
+      <p>
+        Текущая версия: {dataset.version}. Просмотр снимка сохраняет текущие данные. Восстановление
+        создаёт следующую версию; прежняя история остаётся доступной.
+      </p>
+      <ErrorBox>{error || history.error || snapshot.error}</ErrorBox>
+      {history.loading ? (
+        <Loading />
+      ) : (
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Версия</th>
+                <th>Дата</th>
+                <th>Автор</th>
+                <th>Действие</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.data?.items.map((version) => (
+                <tr key={version.version}>
+                  <td>
+                    {version.version}
+                    {version.version === dataset.version ? ' · текущая' : ''}
+                  </td>
+                  <td>
+                    {version.createdAt ? new Date(version.createdAt).toLocaleString('ru-RU') : '—'}
+                  </td>
+                  <td>{version.actor || '—'}</td>
+                  <td>
+                    <Button
+                      disabled={restoring}
+                      onClick={() => {
+                        setSelected(version.version);
+                        setConfirming(false);
+                      }}
+                    >
+                      Открыть снимок
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {history.data && (
+        <Pagination
+          page={page}
+          pageSize={15}
+          total={history.data.total}
+          onChange={setPage}
+          disabled={restoring}
+        />
+      )}
+      {selected && (
+        <section>
+          <h3>Снимок версии {selected}</h3>
+          {snapshot.loading ? (
+            <Loading />
+          ) : (
+            snapshot.data && (
+              <>
+                <p>{snapshot.data.data.name}</p>
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Категория</th>
+                        <th>В снимке</th>
+                        <th>Сейчас</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(groups).map(([group, name]) => (
+                        <tr key={group}>
+                          <th>{name}</th>
+                          <td>{snapshot.data.data[group].length}</td>
+                          <td>{dataset.data[group].length}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="form-actions">
+                  <Button
+                    onClick={() =>
+                      downloadJson(snapshot.data, `qarqyn-${dataset.id}-v${selected}.json`)
+                    }
+                  >
+                    Скачать снимок JSON
+                  </Button>
+                  <Button
+                    disabled={!editable || selected === dataset.version || restoring}
+                    onClick={() => setConfirming(true)}
+                  >
+                    Восстановить эту версию
+                  </Button>
+                </div>
+                {confirming && (
+                  <div role="alert">
+                    <p>
+                      Восстановить записи и параметры версии {selected} вместо текущей версии{' '}
+                      {dataset.version}?
+                    </p>
+                    <div className="row-actions">
+                      <Button disabled={restoring} onClick={() => setConfirming(false)}>
+                        Отмена
+                      </Button>
+                      <Button tone="primary" disabled={restoring} onClick={restore}>
+                        {restoring ? 'Восстанавливаем…' : 'Восстановить данные'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )
+          )}
+        </section>
+      )}
+    </Modal>
+  );
+}
 function DatasetSettings({ dataset, onClose, onSave }) {
   const [name, setName] = useState(dataset.data.name),
     [targets, setTargets] = useState(dataset.data.targets),
+    [coverage, setCoverage] = useState(dataset.data.observationCoverage || []),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
   const names = {
@@ -385,13 +697,13 @@ function DatasetSettings({ dataset, onClose, onSave }) {
     hoursPerShift: 'Часов в смене'
   };
   return (
-    <Modal title="Параметры набора" onClose={onClose}>
+    <Modal title="Параметры набора" onClose={onClose} pending={busy} guardChanges>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
           try {
-            await onSave({ ...dataset.data, name, targets });
+            await onSave({ ...dataset.data, name, targets, observationCoverage: coverage });
           } catch (e) {
             setError(e.message);
           } finally {
@@ -416,9 +728,49 @@ function DatasetSettings({ dataset, onClose, onSave }) {
             </Field>
           ))}
         </div>
+        <details>
+          <summary>Подтвердить полноту журнала простоев</summary>
+          <p>
+            Отмечайте только проверенные периоды. Тогда отсутствие события считается нулевым
+            простоем; без подтверждения это неизвестное значение.
+          </p>
+          {[
+            ...new Map(
+              dataset.data.production.map((row) => [`${row.stageId}:${row.date}`, row])
+            ).values()
+          ].map((row) => (
+            <label className="field" key={`${row.stageId}:${row.date}`}>
+              <span>
+                <input
+                  type="checkbox"
+                  checked={coverage.some(
+                    (item) =>
+                      item.stageId === row.stageId &&
+                      item.date === row.date &&
+                      item.downtimeComplete
+                  )}
+                  onChange={(event) =>
+                    setCoverage((current) => [
+                      ...current.filter(
+                        (item) => !(item.stageId === row.stageId && item.date === row.date)
+                      ),
+                      {
+                        stageId: row.stageId,
+                        date: row.date,
+                        downtimeComplete: event.target.checked
+                      }
+                    ])
+                  }
+                />{' '}
+                {dataset.data.stages.find((stage) => stage.id === row.stageId)?.name} · {row.date}:
+                журнал полон
+              </span>
+            </label>
+          ))}
+        </details>
         <ErrorBox>{error}</ErrorBox>
         <div className="form-actions">
-          <Button type="button" onClick={onClose}>
+          <Button type="button" data-close-modal disabled={busy}>
             Отмена
           </Button>
           <Button tone="primary" disabled={busy}>

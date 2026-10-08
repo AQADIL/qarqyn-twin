@@ -1,16 +1,43 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from './api.js';
+import { takeWorkflow, consumeWorkflow } from './workflow.js';
 import { Icon } from './icons.jsx';
-import { Button, Field, Modal, Confirm, ErrorBox, Empty, Loading, useResource } from './ui.jsx';
+import {
+  Button,
+  Field,
+  Modal,
+  Confirm,
+  ErrorBox,
+  Empty,
+  Loading,
+  Pagination,
+  useResource
+} from './ui.jsx';
 const statuses = { open: 'Открыто', investigating: 'В работе', resolved: 'Решено' };
 const priorities = { normal: 'Обычный', high: 'Высокий', critical: 'Критический' };
 export default function Incidents({ analysis, canWrite, notify, evidence }) {
+  const [handoff] = useState(() => takeWorkflow('incidents', analysis.datasetId));
+  useEffect(() => consumeWorkflow('incidents', handoff), [handoff]);
+  const [page, setPage] = useState(1),
+    [query, setQuery] = useState('');
   const [revision, revise] = useState(0),
-    [editing, edit] = useState(null),
+    [editing, edit] = useState(
+      handoff
+        ? {
+            title: handoff.title,
+            description: handoff.description,
+            stageId: handoff.stageId ?? null
+          }
+        : null
+    ),
     [deleting, remove] = useState(null),
     [filter, setFilter] = useState('all');
-  const state = useResource(`/incidents?datasetId=${analysis.datasetId}`, revision);
-  const rows = state.data?.filter((r) => filter === 'all' || r.status === filter);
+  useEffect(() => setPage(1), [filter, query]);
+  const state = useResource(
+    `/incidents?datasetId=${analysis.datasetId}&page=${page}&pageSize=20&status=${filter}&q=${encodeURIComponent(query)}`,
+    revision
+  );
+  const rows = state.data?.items;
   return (
     <>
       <div className="page-intro">
@@ -45,7 +72,7 @@ export default function Incidents({ analysis, canWrite, notify, evidence }) {
                     edit({
                       title: f.title,
                       description: `${f.detail}\n${f.action}\nИсточники: ${f.sourceIds.join(', ')}`,
-                      stageId: f.stageId || analysis.stages[0].id,
+                      stageId: f.stageId || null,
                       priority: f.severity === 'high' ? 'high' : 'normal'
                     })
                   }
@@ -58,6 +85,9 @@ export default function Incidents({ analysis, canWrite, notify, evidence }) {
         ))}
       </section>
       <section className="incident-section">
+        <Field label="Поиск задач">
+          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} />
+        </Field>
         <div className="section-head">
           <h2>Журнал задач</h2>
           <Field label="Статус">
@@ -90,17 +120,24 @@ export default function Incidents({ analysis, canWrite, notify, evidence }) {
                 </div>
                 <h3>{r.title}</h3>
                 <p className="preserve-lines">{r.description}</p>
+                <p>
+                  {r.assignee ? `Ответственный: ${r.assignee}` : 'Ответственный не назначен'}
+                  {r.dueDate ? ` · Срок: ${r.dueDate}` : ''}
+                </p>
+                {r.resolutionNote && <p>Результат проверки: {r.resolutionNote}</p>}
                 <footer>
                   <small>
-                    {analysis.stages.find((s) => s.id === r.stageId)?.name} ·{' '}
-                    {new Date(r.updatedAt).toLocaleString('ru-RU')}
+                    {analysis.stages.find((s) => s.id === r.stageId)?.name ||
+                      'Общепроизводственная задача'}{' '}
+                    · {new Date(r.updatedAt).toLocaleString('ru-RU')}
                   </small>
                   <div className="row-actions">
-                    <Button icon="edit" onClick={() => edit(r)}>
+                    <Button icon="edit" disabled={!canWrite} onClick={() => edit(r)}>
                       Изменить
                     </Button>
                     <button
                       className="icon-button"
+                      disabled={!canWrite}
                       onClick={() => remove(r)}
                       aria-label={`Удалить задачу ${r.title}`}
                     >
@@ -115,6 +152,9 @@ export default function Incidents({ analysis, canWrite, notify, evidence }) {
           <Empty title="Нет задач в выбранном статусе">
             Создайте задачу из сигнала или добавьте наблюдение вручную.
           </Empty>
+        )}
+        {state.data && (
+          <Pagination page={page} pageSize={20} total={state.data.total} onChange={setPage} />
         )}
       </section>
       {editing && (
@@ -148,7 +188,10 @@ export default function Incidents({ analysis, canWrite, notify, evidence }) {
 function IncidentForm({ item, analysis, onSave, onClose }) {
   const [data, setData] = useState({
     datasetId: analysis.datasetId,
-    stageId: item.stageId || analysis.stages[0].id,
+    stageId: item.stageId || null,
+    assignee: item.assignee || '',
+    dueDate: item.dueDate || null,
+    resolutionNote: item.resolutionNote || '',
     title: item.title || '',
     description: item.description || '',
     priority: item.priority || 'normal',
@@ -156,9 +199,18 @@ function IncidentForm({ item, analysis, onSave, onClose }) {
   });
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
-  const change = (key) => (e) => setData({ ...data, [key]: e.target.value });
+  const change = (key) => (e) =>
+    setData({
+      ...data,
+      [key]: ['stageId', 'dueDate'].includes(key) ? e.target.value || null : e.target.value
+    });
   return (
-    <Modal title={item.id ? 'Изменить задачу' : 'Новая задача'} onClose={onClose}>
+    <Modal
+      title={item.id ? 'Изменить задачу' : 'Новая задача'}
+      onClose={onClose}
+      pending={busy}
+      guardChanges
+    >
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -181,7 +233,8 @@ function IncidentForm({ item, analysis, onSave, onClose }) {
           <input required autoFocus maxLength={180} value={data.title} onChange={change('title')} />
         </Field>
         <Field label="Участок">
-          <select value={data.stageId} onChange={change('stageId')}>
+          <select value={data.stageId || ''} onChange={change('stageId')}>
+            <option value="">Общепроизводственная задача</option>
             {analysis.stages.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -209,6 +262,14 @@ function IncidentForm({ item, analysis, onSave, onClose }) {
             </select>
           </Field>
         </div>
+        <div className="form-grid">
+          <Field label="Ответственный">
+            <input value={data.assignee} maxLength={80} onChange={change('assignee')} />
+          </Field>
+          <Field label="Срок проверки">
+            <input type="date" value={data.dueDate || ''} onChange={change('dueDate')} />
+          </Field>
+        </div>
         <Field label="Описание и основание">
           <textarea
             rows={5}
@@ -217,9 +278,17 @@ function IncidentForm({ item, analysis, onSave, onClose }) {
             onChange={change('description')}
           />
         </Field>
+        <Field label="Фактический результат проверки">
+          <textarea
+            rows={3}
+            maxLength={3000}
+            value={data.resolutionNote}
+            onChange={change('resolutionNote')}
+          />
+        </Field>
         <ErrorBox>{error}</ErrorBox>
         <div className="form-actions">
-          <Button type="button" onClick={onClose}>
+          <Button type="button" data-close-modal disabled={busy}>
             Отмена
           </Button>
           <Button tone="primary" disabled={busy}>

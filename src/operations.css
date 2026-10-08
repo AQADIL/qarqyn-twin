@@ -1,0 +1,84 @@
+.operations {
+  max-width: 1120px;
+}
+.operations-navigation {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 24px 0;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+}
+.operations-navigation button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--secondary);
+  padding: 9px 16px;
+}
+.operations-navigation button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-color: var(--accent);
+}
+.operations-status {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin: 24px 0;
+  flex-wrap: wrap;
+}
+.operations-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 24px 0 40px;
+  gap: 0 40px;
+}
+.operations-facts > div {
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  padding: 16px 0;
+}
+.operations-facts dt {
+  color: var(--secondary);
+  font-size: 14px;
+}
+.operations-facts dd {
+  margin: 0;
+  text-align: right;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.operations-note summary {
+  min-height: 44px;
+  cursor: pointer;
+}
+.operations-note p {
+  margin: 16px 0;
+  max-width: 72ch;
+}
+.operations .table-scroll {
+  margin: 24px 0;
+}
+.operations .section-head {
+  margin-top: 28px;
+}
+.operations td code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+@media (max-width: 850px) {
+  .operations-facts {
+    grid-template-columns: 1fr;
+  }
+  .operations-navigation {
+    gap: 6px;
+  }
+  .operations-navigation button {
+    font-size: 13px;
+    padding-inline: 12px;
+  }
+}
