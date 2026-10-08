@@ -5,7 +5,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { analyze, simulate, optimize, planTarget } from './analytics.js';
 import { digest, checkPassword, hashPassword } from './db.js';
-import { createAssistant } from './ai.js';
+import { assistantHistorySchema, createAssistant } from './ai.js';
 import {
   parse,
   fail,
@@ -321,6 +321,12 @@ export function createApp(db, config) {
     function prepare(req, body) {
       const datasetId = table === 'incidents' ? body.datasetId : body.input.datasetId;
       const d = dataset(req, datasetId);
+      if (
+        table === 'scenarios' &&
+        body.expectedDatasetVersion !== undefined &&
+        body.expectedDatasetVersion !== d.version
+      )
+        fail(409, 'Набор данных изменился. Пересчитайте сценарий перед сохранением.');
       if (table === 'incidents' && !d.data.stages.some((s) => s.id === body.stageId))
         fail(422, 'Неизвестный участок');
       const payload =
@@ -394,13 +400,17 @@ export function createApp(db, config) {
     '/api/assistant',
     rateLimit({
       windowMs: 60_000,
-      limit: 3,
+      limit: config.testing ? 10000 : 3,
       message: { error: 'Лимит помощника: 3 запроса в минуту' }
     }),
     async (req, res) => {
       const body = parse(
         z
-          .object({ datasetId: z.string().max(64), question: z.string().trim().min(3).max(1200) })
+          .object({
+            datasetId: z.string().max(64),
+            question: z.string().trim().min(3).max(1200),
+            history: assistantHistorySchema.optional()
+          })
           .strict(),
         req.body
       );
@@ -417,6 +427,7 @@ export function createApp(db, config) {
         datasetId: d.id,
         datasetVersion: d.version,
         question: body.question,
+        history: body.history,
         userId: req.user.id
       });
       audit(

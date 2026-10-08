@@ -206,6 +206,9 @@ export default function App() {
                 <Icon name={icon} />
                 <span>{label}</span>
                 {key === 'incidents' && a && <small>{a.findings.length}</small>}
+                {(key === 'target' || (key === 'assistant' && session.aiAvailable && canWrite)) && (
+                  <small className="feature-new">NEW</small>
+                )}
               </a>
             ))}
         </nav>
@@ -241,7 +244,8 @@ export default function App() {
             QARQYN <span>/</span> ALLUR <span>/</span> <strong>{pages[page][0]}</strong>
           </div>
           <div className="header-tools">
-            <span className="status-dot" /> <span>Локальный расчёт</span>
+            <span className="status-dot" />
+            <span>{page === 'assistant' ? 'Работа с источниками' : 'Локальный расчёт'}</span>
             <button
               className="icon-button"
               onClick={() => a && setEvidence({})}

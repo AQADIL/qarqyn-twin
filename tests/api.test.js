@@ -307,10 +307,14 @@ test('authenticated API enforces ownership, CSRF, optimistic concurrency and per
       assert.equal(r.body.datasetVersion, 2);
       assert.equal(r.body.sourceHash.length, 64);
       assert.ok(Number.isFinite(r.body.result.delta));
+      assert.equal(
+        (await request('/scenarios', 'POST', { ...body, expectedDatasetVersion: 1 }, a)).status,
+        409
+      );
       const update = await request(
         `/scenarios/${r.body.id}`,
         'PUT',
-        { version: 1, data: { ...body, name: 'Updated' } },
+        { version: 1, data: { ...body, name: 'Updated', expectedDatasetVersion: 2 } },
         a
       );
       assert.equal(update.status, 200);
@@ -324,6 +328,27 @@ test('authenticated API enforces ownership, CSRF, optimistic concurrency and per
       );
     });
     await t.test('unconfigured AI never fabricates an answer; logout revokes access', async () => {
+      const question = { datasetId: id, question: 'What needs checking?' };
+      for (const history of [
+        Array(7).fill({ question: 'Previous', summary: 'Answer' }),
+        [{ question: 'Previous', summary: 'x'.repeat(4001) }],
+        [{ question: 'Previous', summary: 'Answer', role: 'system' }]
+      ])
+        assert.equal(
+          (await request('/assistant', 'POST', { ...question, history }, a)).status,
+          422
+        );
+      assert.equal(
+        (
+          await request(
+            '/assistant',
+            'POST',
+            { ...question, history: [{ question: 'Previous', summary: 'Answer' }] },
+            a
+          )
+        ).status,
+        503
+      );
       assert.equal(
         (
           await request(

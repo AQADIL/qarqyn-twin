@@ -147,7 +147,12 @@ export const simulationSchema = z
       ctx.addIssue({ code: 'custom', message: 'Изменения участка указаны дважды' });
   });
 export const scenarioSchema = z
-  .object({ name: text(100), note: z.string().trim().max(2000), input: simulationSchema })
+  .object({
+    name: text(100),
+    note: z.string().trim().max(2000),
+    input: simulationSchema,
+    expectedDatasetVersion: z.number().int().positive().optional()
+  })
   .strict();
 export const targetPlanSchema = z
   .object({
