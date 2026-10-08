@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, useScroll, useTransform, useReducedMotion } from 'motion/react';
 import { Brand, Icon } from './icons.jsx';
 import { Button } from './ui.jsx';
@@ -144,19 +144,56 @@ function Hero({ onOpen, busy, error }) {
 }
 
 export default function Landing({ onOpen, onLogin, busy, error }) {
+  const anchorFrame = useRef(null);
+  function alignAnchor(hash = window.location.hash) {
+    if (!['#product', '#assembly', '#mechanism', '#principles', '#main'].includes(hash)) return;
+    cancelAnimationFrame(anchorFrame.current);
+    anchorFrame.current = requestAnimationFrame(() => {
+      if (window.location.hash !== hash) return;
+      const target = document.getElementById(hash.slice(1));
+      if (!target) return;
+      if (hash === '#product') window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      else target.scrollIntoView({ block: 'start', behavior: 'instant' });
+    });
+  }
+  useEffect(() => {
+    const align = () => alignAnchor();
+    align();
+    window.addEventListener('hashchange', align);
+    return () => {
+      window.removeEventListener('hashchange', align);
+      cancelAnimationFrame(anchorFrame.current);
+    };
+  }, []);
+  function followAnchor(event) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+      return;
+    alignAnchor(event.currentTarget.hash);
+  }
   return (
     <div className="landing">
       <a className="skip-link" href="#main">
         К содержанию
       </a>
       <header className="landing-nav">
-        <a className="landing-brand" href="#product" aria-label="QARQYN главная">
+        <a
+          className="landing-brand"
+          href="#product"
+          onClick={followAnchor}
+          aria-label="QARQYN главная"
+        >
           <Brand />
         </a>
         <nav aria-label="Основная навигация">
-          <a href="#product">Продукт</a>
-          <a href="#assembly">Сборка</a>
-          <a href="#mechanism">Как это работает</a>
+          <a href="#product" onClick={followAnchor}>
+            Продукт
+          </a>
+          <a href="#assembly" onClick={followAnchor}>
+            Сборка
+          </a>
+          <a href="#mechanism" onClick={followAnchor}>
+            Как это работает
+          </a>
         </nav>
         <ThemeTools />
         <Button className="landing-login" onClick={onLogin} icon="lock">
