@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>QARQYN · резерв следующего выпуска</title>
+  <style>
+    {{FONT_FACES}}
+    :root { --gold:#e6c49b; --muted:#b2b1aa; --ink:#f3f1e9; --scale:1; color-scheme:dark; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; scroll-snap-type:y proximity; }
+    body { margin:0; background:#161716; color:var(--ink); font-family:'Plex',Arial,sans-serif; }
+    .page { width:calc(1600px * var(--scale)); height:calc(900px * var(--scale)); margin:24px auto; scroll-snap-align:center; }
+    .slide { position:relative; isolation:isolate; width:1600px; height:900px; padding:70px 88px; overflow:hidden; transform:scale(var(--scale)); transform-origin:top left; background:#020303 url('{{ASSET:docs/assets/pitch-stars.jpg}}') center/cover; }
+    .topline { display:flex; align-items:center; justify-content:space-between; font-size:20px; letter-spacing:.1em; color:var(--muted); }
+    .brand { display:flex; align-items:center; gap:14px; color:var(--ink); font-size:26px; font-weight:600; letter-spacing:.09em; }
+    .brand svg { width:33px; height:33px; color:var(--gold); }
+    h1,h2,h3,p { margin:0; }
+    h1 { font-size:83px; line-height:1.08; font-weight:600; letter-spacing:-.035em; }
+    h2 { font-size:70px; line-height:1.1; font-weight:500; letter-spacing:-.025em; }
+    h3 { font-size:34px; line-height:1.25; font-weight:500; }
+    p { font-size:28px; line-height:1.45; }
+    .accent { color:var(--gold); }
+    .muted { color:var(--muted); }
+    .foot { position:absolute; bottom:35px; left:88px; right:88px; display:flex; align-items:flex-end; justify-content:space-between; gap:36px; font-size:20px; line-height:1.4; color:#a4a6a0; }
+    .foot .number { font-size:22px; color:var(--gold); white-space:nowrap; }
+    .foot a { color:inherit; text-decoration:none; }
+    .intro { margin-top:115px; position:relative; z-index:2; width:800px; }
+    .intro h1 { max-width:780px; }
+    .intro p { margin-top:33px; color:var(--muted); max-width:620px; font-size:31px; }
+    .cover-art { position:absolute; width:935px; height:670px; object-fit:contain; right:-42px; top:200px; z-index:-1; }
+    .authors { position:absolute; left:88px; bottom:112px; font-size:23px; line-height:1.65; }
+    .authors small { display:block; font-size:20px; color:var(--muted); }
+    .title { margin-top:48px; }
+    .losses { display:flex; gap:82px; margin-top:66px; }
+    .loss { width:315px; }
+    .loss strong { display:block; font-size:138px; line-height:1; font-weight:500; letter-spacing:-.04em; white-space:nowrap; }
+    .loss strong small { font-size:40px; font-weight:400; letter-spacing:0; }
+    .loss p { margin-top:17px; color:var(--muted); font-size:28px; }
+    .loss-art { position:absolute; width:620px; height:550px; object-fit:contain; right:36px; top:236px; }
+    .thesis { position:absolute; bottom:130px; left:88px; font-size:31px; line-height:1.45; }
+    .source { font-size:18px; }
+    .workflow-layout { display:grid; grid-template-columns:850px 1fr; gap:60px; margin-top:35px; align-items:start; }
+    .product-image { width:850px; height:478px; object-fit:contain; object-position:top; border:1px solid #343833; }
+    #slide-3 h2 { font-size:64px; }
+    .flow-copy { padding-top:14px; }
+    .flow-copy section { margin-bottom:34px; padding-left:25px; border-left:2px solid #79674f; }
+    .flow-copy h3 { margin-bottom:10px; }
+    .flow-copy p { font-size:24px; color:var(--muted); }
+    .plan-layout { display:grid; grid-template-columns:850px 1fr; margin-top:24px; align-items:center; }
+    .time { font-size:143px; line-height:1.1; letter-spacing:-.045em; font-weight:500; color:var(--gold); }
+    .time small { font-size:56px; letter-spacing:0; font-weight:400; }
+    .plan-description { font-size:32px; line-height:1.4; margin-top:14px; }
+    .plan-metrics { display:flex; gap:63px; margin-top:26px; }
+    .plan-metrics strong { font-size:58px; line-height:1.1; font-weight:500; }
+    .plan-metrics p { font-size:23px; color:var(--muted); margin-top:12px; }
+    .plan-art { width:585px; height:395px; object-fit:contain; margin-left:-55px; }
+    .assumption { position:absolute; left:88px; bottom:97px; max-width:1320px; color:var(--muted); font-size:22px; line-height:1.4; }
+    .impact-layout { display:grid; grid-template-columns:480px 1fr; gap:105px; align-items:start; margin-top:42px; }
+    .realization { font-size:159px; font-weight:500; letter-spacing:-.04em; line-height:1; }
+    .impact-intro p { margin-top:22px; max-width:425px; color:var(--muted); font-size:28px; }
+    .chart { padding-top:10px; }
+    .bar-row { display:grid; grid-template-columns:145px 1fr 120px; gap:21px; align-items:center; margin-bottom:23px; }
+    .bar-row span { font-size:24px; line-height:1.15; color:var(--muted); }
+    .bar-track { height:22px; width:100%; }
+    .bar { height:100%; background:#6f756d; }
+    .bar-row.partial .bar { background:var(--gold); }
+    .bar-row.full .bar { background:#dddcd4; }
+    .bar-row strong { text-align:right; font-size:42px; font-weight:500; }
+    .axis { display:flex; justify-content:space-between; margin:4px 141px 0 166px; border-top:1px solid #63665d; padding-top:9px; color:#9b9e94; font-size:19px; }
+    .result-note { margin:22px 0 0 166px; font-size:27px; max-width:610px; }
+    .confidence { position:absolute; left:88px; right:88px; bottom:112px; border-top:1px solid #41433c; padding-top:25px; display:flex; gap:55px; }
+    .confidence p { font-size:23px; line-height:1.4; }
+    .confidence p:last-child { color:var(--muted); }
+    .closing-copy { position:relative; width:995px; z-index:2; margin-top:77px; }
+    .closing-copy h2 { font-size:80px; }
+    .pilot { margin-top:47px; display:flex; flex-direction:column; gap:13px; font-size:31px; color:var(--muted); }
+    .pilot strong { color:var(--gold); font-weight:500; }
+    .closing-line { margin-top:40px; font-size:32px; max-width:820px; }
+    .closing-art { position:absolute; right:-64px; top:182px; width:760px; height:660px; object-fit:contain; z-index:-1; }
+    .repo { position:absolute; bottom:110px; left:88px; color:var(--gold); font-size:26px; text-decoration:none; }
+    .toolbar { position:fixed; z-index:10; left:50%; bottom:12px; transform:translateX(-50%); display:flex; align-items:center; gap:15px; padding:9px 13px; border:1px solid #56544c; border-radius:8px; background:#151611; box-shadow:0 5px 25px #0007; font-size:14px; }
+    .toolbar button { border:0; background:none; color:var(--ink); font:inherit; padding:5px 8px; cursor:pointer; }
+    .toolbar button:hover { color:var(--gold); }
+    .toolbar button:focus-visible { outline:2px solid var(--gold); }
+    .toolbar output { color:var(--gold); min-width:46px; text-align:center; }
+    .skip { position:fixed; left:10px; top:-100px; z-index:20; }
+    .skip:focus { top:10px; }
+    @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
+    @media print {
+      @page { size:1600px 900px; margin:0; }
+      html,body { width:1600px; margin:0; background:#000; scroll-snap-type:none; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .page { width:1600px; height:900px; margin:0; break-after:page; break-inside:avoid; }
+      .page:last-of-type { break-after:auto; }
+      .slide { transform:none; }
+      .toolbar,.skip { display:none; }
+    }
+  </style>
+</head>
+<body>
+<a class="skip" href="#slide-1">К презентации</a>
+<main>
+  <div class="page" id="slide-1"><section class="slide" aria-label="1. QARQYN">
+    <header class="topline"><div class="brand">{{BRAND}} QARQYN</div><span>ALLUR · КЕЙС 02</span></header>
+    <div class="intro"><h1>Найдите резерв<br>следующего<br><span class="accent">выпуска</span></h1><p>Цифровой двойник производства<br>для решений, которые можно проверить</p></div>
+    <img class="cover-art" src="{{ASSET:public/cosmic-hero.webp}}" alt="Иллюстрация сборочного комплекса с ракетой">
+    <div class="authors">Әліш Ақәділ · Төртқара Ерасыл<small>Astana IT University · Астана</small></div>
+    <footer class="foot"><span>Qostanai AI Industry Hackathon 2026</span><span class="number">01 / 06</span></footer>
+  </section></div>
+  <div class="page" id="slide-2"><section class="slide" aria-label="2. Где искать резерв">
+    <header class="topline"><div class="brand">{{BRAND}} QARQYN</div><span>ПРОИЗВОДСТВЕННАЯ ЗАДАЧА</span></header>
+    <h2 class="title">Где искать <span class="accent">резерв?</span></h2>
+    <div class="losses"><div class="loss"><strong>{{DEFECTS}}</strong><p>дефектных операций</p></div><div class="loss"><strong>{{DOWNTIME}}<small> мин</small></strong><p>остановок оборудования</p></div></div>
+    <img class="loss-art" src="{{ASSET:public/cosmic-painting-768.webp}}" alt="Иллюстрация участка обработки корпуса ракеты">
+    <p class="thesis">Выбрать действие,<br>которое поможет <span class="accent">всей цепочке</span></p>
+    <footer class="foot"><span class="source">Тестовые данные организаторов: 1–2 октября 2026.<br>Минуты отдельных остановок, включая ТО; не простой всей линии.</span><span class="number">02 / 06</span></footer>
+  </section></div>
+  <div class="page" id="slide-3"><section class="slide" aria-label="3. Проверяемое решение">
+    <header class="topline"><div class="brand">{{BRAND}} QARQYN</div><span>РАБОТАЮЩИЙ ПРОДУКТ</span></header>
+    <h2 class="title">Решение сохраняет<br><span class="accent">свои основания</span></h2>
+    <div class="workflow-layout"><img class="product-image" src="{{ASSET:docs/assets/overview-dark.png}}" alt="Настоящий экран производства QARQYN на данных организаторов"><div class="flow-copy">
+      <section><h3>Источник</h3><p>Записи, импорт таблиц<br>и версии данных</p></section>
+      <section><h3>Сценарий</h3><p>Условия решения<br>и серверный пересчёт</p></section>
+      <section><h3>Задача</h3><p>Ответственный, срок<br>и фактический результат</p></section>
+    </div></div>
+    <footer class="foot"><span>Веб-приложение для компьютера и телефона</span><span class="number">03 / 06</span></footer>
+  </section></div>
+  <div class="page" id="slide-4"><section class="slide" aria-label="4. Обратное планирование">
+    <header class="topline"><div class="brand">{{BRAND}} QARQYN</div><span>ОБРАТНОЕ ПЛАНИРОВАНИЕ</span></header>
+    <h2 class="title">Задайте выпуск.<br>Получите <span class="accent">план действий</span></h2>
+    <div class="plan-layout"><div><div class="time">{{RECOVERY}} <small>мин</small></div><p class="plan-description">восстановить на сварке<br><span class="muted">Плановое ТО сохраняется</span></p><div class="plan-metrics"><div><strong>{{BASELINE}}</strong><p>базовый поток</p></div><div><strong class="accent">{{TARGET}}</strong><p>цель выпуска</p></div></div></div><img class="plan-art" src="{{ASSET:public/cosmic-welding-768.webp}}" alt="Иллюстрация роботизированной сварки ракетного корпуса"></div>
+    <p class="assumption">Условный расчёт на 8 часов. Исходная строка = 8 часов (допущение).<br>Скорость и качество неизменны. Реальную устранимость потерь подтверждает инженер.</p>
+    <footer class="foot"><a href="https://github.com/AQADIL/qarqyn-twin/blob/main/docs/target-planning.md">Модель потока · данные кейса Allur</a><span class="number">04 / 06</span></footer>
+  </section></div>
+  <div class="page" id="slide-5"><section class="slide" aria-label="5. Проверка частичного выполнения">
+    <header class="topline"><div class="brand">{{BRAND}} QARQYN</div><span>ПРОВЕРКА РЕШЕНИЯ</span></header>
+    <h2 class="title">А если получится<br><span class="accent">только половина?</span></h2>
+    <div class="impact-layout"><div class="impact-intro"><div class="realization accent">50%</div><p>найденного восстановления времени выполнено</p></div><div class="chart" role="img" aria-label="Расчётный поток: без изменений {{BASELINE}}, при реализации половины плана {{HALF}}, полный план {{TARGET}} единиц за 8 часов.">
+      <div class="bar-row"><span>Без<br>изменений</span><div class="bar-track"><div class="bar" style="width:{{BASE_WIDTH}}%"></div></div><strong>{{BASELINE}}</strong></div>
+      <div class="bar-row partial"><span>Половина<br>плана</span><div class="bar-track"><div class="bar" style="width:{{HALF_WIDTH}}%"></div></div><strong class="accent">{{HALF}}</strong></div>
+      <div class="bar-row full"><span>Полный<br>план</span><div class="bar-track"><div class="bar" style="width:{{TARGET_WIDTH}}%"></div></div><strong>{{TARGET}}</strong></div>
+      <div class="axis"><span>0</span><span>Годный поток, ед. / 8 ч</span><span>110</span></div>
+      <p class="result-note">Цель {{TARGET}} ещё <span class="accent">не достигнута</span>.</p>
+    </div></div>
+    <div class="confidence"><p>ИИ предлагает.<br><span class="accent">Сервер пересчитывает. Инженер решает.</span></p><p>Две даты дают предварительный прогноз.<br>Точность требует длинной истории.</p></div>
+    <footer class="foot"><span class="source">Та же модель и условия, что на слайде 4. Расчёт, а не измеренный эффект завода.</span><span class="number">05 / 06</span></footer>
+  </section></div>
+  <div class="page" id="slide-6"><section class="slide" aria-label="6. Предложение пилота">
+    <header class="topline"><div class="brand">{{BRAND}} QARQYN</div><span>ПРЕДЛАГАЕМ ПИЛОТ ALLUR</span></header>
+    <div class="closing-copy"><h2>Проверим резерв<br><span class="accent">на вашем участке</span></h2><div class="pilot"><span><strong>Один участок.</strong> Согласованные данные.</span><span><strong>Сопоставимые смены.</strong> Проверка до и после.</span><span><strong>Измеримый эффект.</strong> Выпуск, качество, затраты.</span></div><p class="closing-line">Каждая возвращённая минута<br>должна работать на выпуск.</p></div>
+    <img class="closing-art" src="{{ASSET:public/cosmic-finished-768.webp}}" alt="Иллюстрация ракеты на стартовом комплексе">
+    <a class="repo" href="https://github.com/AQADIL/qarqyn-twin">github.com/AQADIL/qarqyn-twin ↗</a>
+    <footer class="foot"><span>Astana IT University · Әліш Ақәділ · Төртқара Ерасыл<br><span class="source">Иллюстрации созданы с ИИ. Подтверждение эффекта и интеграция с заводом - этап пилота.</span></span><span class="number">06 / 06</span></footer>
+  </section></div>
+</main>
+<nav class="toolbar" aria-label="Управление презентацией"><button type="button" id="prev" aria-label="Предыдущий слайд">←</button><output id="page-status" aria-live="polite">01 / 06</output><button type="button" id="next" aria-label="Следующий слайд">→</button><button type="button" id="fullscreen">На весь экран</button><button type="button" id="print">Сохранить PDF</button></nav>
+<script>
+  const slides = [...document.querySelectorAll('.page')];
+  let active = 0;
+  const fit = () => document.documentElement.style.setProperty('--scale', Math.min((innerWidth - 24) / 1600, (innerHeight - 74) / 900, 1));
+  fit();
+  window.addEventListener('resize', fit);
+  const show = index => { active = Math.max(0, Math.min(slides.length - 1, index)); slides[active].scrollIntoView({block:'center'}); };
+  document.getElementById('prev').addEventListener('click', () => show(active - 1));
+  document.getElementById('next').addEventListener('click', () => show(active + 1));
+  document.getElementById('print').addEventListener('click', () => window.print());
+  document.getElementById('fullscreen').addEventListener('click', async () => { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); });
+  window.addEventListener('keydown', event => { if (event.altKey || event.ctrlKey || event.metaKey || event.target.closest('button,a')) return; if (['ArrowRight','ArrowDown','PageDown',' '].includes(event.key)) { event.preventDefault(); show(active + 1); } else if (['ArrowLeft','ArrowUp','PageUp'].includes(event.key)) { event.preventDefault(); show(active - 1); } });
+  const observer = new IntersectionObserver(entries => { for (const entry of entries) if (entry.isIntersecting) { active = slides.indexOf(entry.target); document.getElementById('page-status').textContent = `${String(active + 1).padStart(2,'0')} / 06`; } }, {threshold:.55});
+  slides.forEach(slide => observer.observe(slide));
+</script>
+</body>
+</html>

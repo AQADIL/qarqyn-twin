@@ -9,6 +9,7 @@
 <p align="center">
   <a href="#product">Продукт</a> ·
   <a href="#mechanism">Как работает</a> ·
+  <a href="docs/submission/QARQYN-pitch.pdf">Презентация</a> ·
   <a href="docs/submission/pitch-and-qa.md">Pitch &amp; Q&amp;A</a> ·
   <a href="#start">Запуск</a> ·
   <a href="#data">Данные</a> ·
@@ -25,6 +26,8 @@ QARQYN помогает инженеру найти потери, оценить
 > **Начните с решения.** Поставьте цель 109 единиц, получите план восстановления времени, уменьшите его реализацию до 50% и проверьте, как выпуск меняется до 107,7. Каждый результат связан с версией исходных данных.
 
 ### Три минуты внутри продукта
+
+[Презентация PDF · 6 слайдов](docs/submission/QARQYN-pitch.pdf) · [HTML для показа офлайн](docs/submission/QARQYN-pitch.html) · [Реплики на 3 минуты](docs/submission/presentation-notes.md)
 
 | Шаг | Откройте | Проверьте сами |
 | --- | --- | --- |
