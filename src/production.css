@@ -1,0 +1,194 @@
+.production-track {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3px;
+  margin: 28px -8px 10px;
+}
+.production-stage {
+  min-width: 0;
+  position: relative;
+  border: 0;
+  border-radius: 4px;
+  padding: 18px 8px 20px;
+  background: transparent;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  transition: background-color 160ms ease;
+}
+.production-stage.selected {
+  background: #eddbce;
+}
+.production-stage:hover {
+  background: #e7e2d9;
+}
+.production-stage.selected:hover {
+  background: #eddbce;
+}
+.production-stage-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+}
+.production-stage-heading > span {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  background: #d4d3ca;
+  border-radius: 50%;
+  font: 12px var(--mono);
+}
+.production-stage-heading strong {
+  font-size: 12px;
+}
+.production-stage.selected .production-stage-heading {
+  color: var(--accent);
+}
+.production-stage.selected .production-stage-heading > span {
+  background: var(--accent);
+  color: #fff;
+}
+.production-stage img {
+  width: calc(100% + 12px);
+  max-width: none;
+  margin: 16px -6px 10px;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  pointer-events: none;
+}
+.production-stage-output {
+  font: 12px var(--mono);
+  margin-top: auto;
+}
+.production-stage-caption {
+  font-size: 11px;
+  color: var(--secondary);
+  margin-top: 6px;
+}
+.production-caption {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--secondary);
+}
+.process-guide {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+  margin-top: 28px;
+  padding: 24px 0;
+}
+.process-guide > svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.process-guide p {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.6;
+  min-width: 180px;
+  max-width: 470px;
+}
+.process-guide .text-button {
+  font-size: 12px;
+}
+.production-inspector {
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0 0 24px;
+}
+.production-inspector .big-reading strong {
+  font-size: 52px;
+  color: var(--accent);
+}
+.production-inspector .big-reading > span {
+  font-size: 12px;
+}
+.production-inspector .meter {
+  display: none;
+}
+.workspace-title h1 {
+  font-size: clamp(29px, 3.2vw, 44px);
+  line-height: 1.12;
+}
+.metric-strip strong {
+  font-weight: 500;
+}
+.overview-grid {
+  align-items: start;
+}
+@media (max-width: 1180px) {
+  .production-track {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 20px;
+  }
+  .production-stage {
+    padding: 12px 8px;
+  }
+  .production-stage img {
+    max-height: 130px;
+    margin-top: 8px;
+  }
+  .production-stage-heading strong {
+    font-size: 12px;
+  }
+  .production-stage-caption {
+    font-size: 11px;
+  }
+  .production-inspector {
+    padding: 0 0 0 18px;
+  }
+}
+@media (max-width: 700px) {
+  .production-track {
+    gap: 8px 4px;
+    margin-inline: -6px;
+  }
+  .production-stage-heading {
+    gap: 4px;
+  }
+  .production-stage-heading > span {
+    width: 19px;
+    height: 19px;
+    font-size: 11px;
+  }
+  .production-stage-heading strong {
+    font-size: 11px;
+  }
+  .production-stage img {
+    margin-block: 12px;
+  }
+  .production-stage-output {
+    font-size: 11px;
+  }
+  .production-stage-caption {
+    font-size: 10px;
+  }
+  .production-inspector {
+    padding: 24px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .production-inspector .inspector-label {
+    margin-bottom: 12px;
+  }
+  .production-inspector .stat-list > div {
+    flex-wrap: nowrap;
+  }
+  .process-guide {
+    margin-top: 18px;
+    padding-block: 18px;
+    gap: 12px;
+  }
+  .process-guide .text-button {
+    margin-left: 36px;
+  }
+}
