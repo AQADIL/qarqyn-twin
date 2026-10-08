@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { motion, useScroll, useTransform, useReducedMotion } from 'motion/react';
 import { Brand, Icon } from './icons.jsx';
 import { Button } from './ui.jsx';
+import ScrollVideo from './ScrollVideo.jsx';
 
 const processSteps = [
   {
@@ -149,6 +150,7 @@ export default function Landing({ onOpen, onLogin, busy, error }) {
         </a>
         <nav aria-label="Основная навигация">
           <a href="#product">Продукт</a>
+          <a href="#assembly">Сборка</a>
           <a href="#mechanism">Как это работает</a>
           <Button onClick={onLogin} icon="lock">
             Войти
@@ -157,6 +159,7 @@ export default function Landing({ onOpen, onLogin, busy, error }) {
       </header>
       <main id="main" tabIndex={-1}>
         <Hero onOpen={onOpen} busy={busy} error={error} />
+        <ScrollVideo src="/car-assembly.mp4" poster="/car-assembly-video-poster.jpg" />
         <Story onOpen={onOpen} busy={busy} />
         <section className="principles" id="principles" aria-labelledby="principles-title">
           <h2 id="principles-title">
