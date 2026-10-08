@@ -36,6 +36,7 @@ function fixture() {
         stageId: 'a',
         equipment: 'A1',
         reason: 'Test stoppage',
+        classification: 'unplanned',
         minutes: 60
       },
       {
@@ -52,6 +53,7 @@ function fixture() {
         stageId: 'b',
         equipment: 'B1',
         reason: 'Test stoppage',
+        classification: 'unplanned',
         minutes: 180
       }
     ]
@@ -164,7 +166,7 @@ test('original Allur target 109 is attainable while 110 exceeds the fixed-qualit
   const plan = planTarget(source, request);
   assert.equal(plan.achievable, true);
   close(plan.result.scenario.output, 109);
-  close(plan.maxGoodOutput, 109.34186130723752);
+  close(plan.maxGoodOutput, 109.33919191919193);
   assert.equal(plan.evidence.find((s) => s.stageId === 'welding').excludedPlannedMinutes, 15);
   assert.equal(planTarget(source, { ...request, targetGoodOutput: 110 }).achievable, false);
 });

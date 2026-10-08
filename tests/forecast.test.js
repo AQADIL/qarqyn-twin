@@ -41,7 +41,7 @@ test('organizer two-date forecasts stay provisional with no fabricated accuracy'
   const before = structuredClone(organizer);
   const result = forecast(organizer);
   assert.deepEqual(organizer, before);
-  assert.equal(result.version, 'forecast-v1');
+  assert.equal(result.version, 'forecast-v2');
   assert.equal(result.observationCount, 2);
   assert.equal(result.readiness.status, 'provisional');
   assert.equal(result.summary.backtestedMetrics, 0);
@@ -234,4 +234,78 @@ test('long histories retain complete validation statistics while bounding displa
   assert.equal(value.validation.mae, 0);
   assert.equal(value.validation.backtest.at(-1).trainingObservations, 199);
   assert.equal(value.sourceIds.length, 200);
+});
+
+test('confirmed event-free periods become explicit zero observations without inventing equipment history', () => {
+  const data = history([100, 100, 100]);
+  data.downtime = data.downtime.slice(0, 1);
+  data.observationCoverage = data.production
+    .slice(1)
+    .map((row) => ({ stageId: row.stageId, date: row.date, downtimeComplete: true }));
+  const value = stage(forecast(data));
+  assert.deepEqual(
+    value.downtime.points.map((point) => point.value),
+    [10, 0, 0]
+  );
+  assert.equal(value.nextDowntimeMinutes, 0);
+  assert.equal(value.downtime.points[1].coverageEvidence.downtimeComplete, true);
+  assert.equal(value.equipment[0].metric.observationCount, 1);
+});
+
+test('known regime changes restart forecasting and validation using comparable current observations', () => {
+  for (const change of [
+    (row) => {
+      row.line = 'New line';
+    },
+    (row) => {
+      row.periodHours = 10;
+    },
+    (row) => {
+      row.regime = 'New product';
+    }
+  ]) {
+    const data = history([...Array(12).fill(100), 50, 55]);
+    data.production.slice(-2).forEach(change);
+    const result = forecast(data);
+    const value = stage(result);
+    assert.equal(value.output.observationCount, 2);
+    assert.equal(value.output.validation.folds, 0);
+    assert.equal(value.regime.excludedObservationCount, 12);
+    assert.equal(value.regime.since, '2026-01-13');
+    assert.equal(value.nextOutput, 55);
+    assert.equal(result.readiness.status, 'provisional');
+    assert.ok(result.dataPriorities.some((row) => row.id === 'regime-change'));
+  }
+});
+
+test('interval coverage is measured causally after twenty earlier errors, never on its calibration target', () => {
+  const earlyValues = Array(28).fill(100);
+  const first = stage(forecast(history(earlyValues))).output;
+  assert.equal(first.diagnostics.intervalCoverage.evaluatedFolds, 5);
+  assert.equal(first.diagnostics.intervalCoverage.empiricalCoveragePct, 100);
+  assert.equal(first.validation.backtest[19].intervalLow, null);
+  assert.equal(first.validation.backtest[20].intervalLow, 100);
+  const later = stage(forecast(history([...earlyValues, 10000]))).output;
+  assert.deepEqual(later.validation.backtest.slice(0, -1), first.validation.backtest);
+  const shock = later.validation.backtest.at(-1);
+  assert.equal(shock.intervalLow, 100);
+  assert.equal(shock.intervalHigh, 100);
+  assert.equal(shock.intervalCovered, false);
+  assert.equal(later.diagnostics.intervalCoverage.evaluatedFolds, 6);
+  assert.equal(later.diagnostics.intervalCoverage.coveredFolds, 5);
+});
+
+test('diagnostics show observed coverage, irregular spacing and recent error deterioration honestly', () => {
+  const data = history([...Array(20).fill(100), 1000, 10, 1000, 10, 1000]);
+  data.quality = data.quality.slice(0, -1);
+  const result = forecast(data);
+  assert.equal(stage(result).output.diagnostics.drift.status, 'watch');
+  assert.equal(stage(result).quality.diagnostics.missingDates, 1);
+  assert.equal(stage(result).quality.diagnostics.observedCoveragePct, 96);
+  const sparse = history([100, 100, 100]);
+  for (const key of ['production', 'quality', 'downtime']) sparse[key][2].date = '2026-01-06';
+  const diagnostic = stage(forecast(sparse)).output.diagnostics;
+  assert.equal(diagnostic.irregularSpacing, true);
+  assert.equal(diagnostic.maxCalendarGapDays, 4);
+  assert.match(diagnostic.spacingNote, /не доказывают/);
 });

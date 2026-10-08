@@ -2,14 +2,27 @@ import { z } from 'zod';
 import { planTarget, round } from './analytics.js';
 import { parse, targetPlanSchema } from './schema.js';
 
-const money = z.number().finite().min(0).max(1e12).nullable().default(null);
+const moneyValue = z
+  .number()
+  .finite()
+  .min(0)
+  .max(1e12)
+  .refine((value) => value === 0 || value >= 0.01, 'Сумма должна быть нулём или не менее 0,01.')
+  .refine(
+    (value) => Math.abs(Math.round(value * 100) - value * 100) < 0.001,
+    'Укажите сумму с точностью до двух знаков.'
+  );
+const money = moneyValue.nullable().default(null);
+const finiteCeiling = (value) => (Number.isFinite(value) ? Math.ceil(value) : null);
 export const impactSchema = targetPlanSchema
   .extend({
     expectedDatasetVersion: z.number().int().positive(),
     periods: z.number().int().min(1).max(366).default(1),
     realizationPct: z.number().min(0).max(100).default(100),
     unitContribution: money,
-    implementationCost: money
+    implementationCost: money,
+    recurringCostPerPeriod: moneyValue.default(0),
+    maxAdditionalSalesPerPeriod: z.number().finite().min(0).max(1000000).nullable().default(null)
   })
   .strict();
 
@@ -19,7 +32,8 @@ export function evaluateImpact(data, request) {
     datasetId: input.datasetId,
     hours: input.hours,
     observationHours: input.observationHours,
-    targetGoodOutput: input.targetGoodOutput
+    targetGoodOutput: input.targetGoodOutput,
+    ...(input.date ? { date: input.date } : {})
   });
   const outputAt = (realizationPct) =>
     Math.min(
@@ -39,36 +53,48 @@ export function evaluateImpact(data, request) {
   const realized = outputAt(input.realizationPct);
   const gain = Math.max(0, realized - baseline);
   const totalGain = gain * input.periods;
+  const soldPerPeriod = Math.min(gain, input.maxAdditionalSalesPerPeriod ?? gain);
+  const soldTotal = soldPerPeriod * input.periods;
+  const recurringCost = input.recurringCostPerPeriod * input.periods;
   const suppliedEconomics = input.unitContribution !== null && input.implementationCost !== null;
   const economicGain =
-    suppliedEconomics && plan.achievable ? totalGain * input.unitContribution : null;
-  const net = economicGain === null ? null : economicGain - input.implementationCost;
+    suppliedEconomics && plan.achievable ? soldTotal * input.unitContribution : null;
+  const net =
+    economicGain === null ? null : economicGain - input.implementationCost - recurringCost;
   const contributionPerPeriod =
-    input.unitContribution === null ? null : gain * input.unitContribution;
+    input.unitContribution === null
+      ? null
+      : soldPerPeriod * input.unitContribution - input.recurringCostPerPeriod;
   const economics = {
     unitContribution: input.unitContribution,
     implementationCost: input.implementationCost,
+    recurringCostPerPeriod: input.recurringCostPerPeriod,
+    recurringCost: round(recurringCost),
+    maxAdditionalSalesPerPeriod: input.maxAdditionalSalesPerPeriod,
+    soldAdditionalUnits: round(soldTotal, 4),
+    unsoldAdditionalUnits: round(totalGain - soldTotal, 4),
+    currency: 'KZT',
     grossContribution: economicGain === null ? null : round(economicGain),
     netContribution: net === null ? null : round(net),
     breakEvenUnits:
       !suppliedEconomics || !plan.achievable
         ? null
-        : input.implementationCost === 0
+        : input.implementationCost === 0 && recurringCost === 0
           ? 0
           : input.unitContribution > 0
-            ? round(input.implementationCost / input.unitContribution, 4)
+            ? round((input.implementationCost + recurringCost) / input.unitContribution, 4)
             : null,
     breakEvenPeriods:
       !suppliedEconomics || !plan.achievable
         ? null
-        : input.implementationCost === 0
+        : input.implementationCost === 0 && contributionPerPeriod >= 0
           ? 0
           : contributionPerPeriod > 0
-            ? Math.ceil(input.implementationCost / contributionPerPeriod)
+            ? finiteCeiling(input.implementationCost / contributionPerPeriod)
             : null,
     roiPct:
-      net !== null && input.implementationCost > 0
-        ? round((net / input.implementationCost) * 100)
+      net !== null && input.implementationCost + recurringCost > 0
+        ? round((net / (input.implementationCost + recurringCost)) * 100)
         : null,
     status: !plan.achievable
       ? 'unattainable'
@@ -89,7 +115,7 @@ export function evaluateImpact(data, request) {
   );
   return {
     datasetId: input.datasetId,
-    modelVersion: 'impact-v1',
+    modelVersion: 'impact-v2',
     baselineOutput: round(baseline, 4),
     targetOutput: input.targetGoodOutput,
     achievable: plan.achievable,
@@ -125,14 +151,23 @@ export function evaluateImpact(data, request) {
         netContribution:
           !suppliedEconomics || !plan.achievable
             ? null
-            : round(delta * input.periods * input.unitContribution - input.implementationCost)
+            : round(
+                Math.min(delta, input.maxAdditionalSalesPerPeriod ?? delta) *
+                  input.periods *
+                  input.unitContribution -
+                  input.implementationCost -
+                  recurringCost
+              )
       };
     }),
     bottleneck: bottleneck ? { stageId: bottleneck.stageId, name: bottleneck.name } : null,
     assumptions: [
       'Доля реализации — выбранная пользователем часть восстановленных минут. Это стресс-сценарий, а не вероятность успеха.',
       'Дополнительный выпуск пересчитывается по ограничениям всей цепочки. Эффект не масштабируется простым умножением готового результата.',
-      'Вклад одной дополнительной годной единицы должен учитывать переменные затраты. Стоимость решения — единовременные дополнительные затраты. Налоги, дисконтирование и новые регулярные расходы здесь не моделируются.',
+      'Вклад одной проданной дополнительной годной единицы учитывает переменные затраты. Отдельно учитываются разовые затраты и регулярные затраты на период. Налоги и дисконтирование не моделируются.',
+      input.maxAdditionalSalesPerPeriod === null
+        ? 'Предел дополнительных продаж не задан. Денежный результат условно предполагает продажу всего дополнительного выпуска; подтвердите спрос.'
+        : `Денежный результат ограничен дополнительными продажами не более ${input.maxAdditionalSalesPerPeriod} единиц за период; непроданный выпуск не приносит доход.`,
       'Повторение одинакового эффекта предполагает одинаковую длительность, загрузку, качество и реализуемый спрос во всех выбранных периодах.',
       'Денежные значения вводит пользователь. Они не взяты из данных Allur. Расчётный эффект необходимо проверить на пилоте.',
       ...plan.assumptions

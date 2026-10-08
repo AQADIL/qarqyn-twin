@@ -14,7 +14,7 @@ test('organizer data validates and totals do not double count vehicle stages', (
   assert.equal(a.totals.planGap, 700);
   assert.equal(a.totals.rows, 19);
   assert.equal(a.oee, null);
-  assert.equal(a.stages.find((s) => s.id === 'painting').defectPct, 4.33);
+  assert.equal(a.stages.find((s) => s.id === 'painting').defectPct, (10 / 231) * 100);
   assert.equal(a.stages.find((s) => s.id === 'warehouse').rate, null);
   assert.equal(a.findings.filter((f) => f.kind === 'quality').length, 2);
 });
@@ -92,6 +92,11 @@ test('sequential model has a hand-calculated result and a bottleneck', () => {
     defects: i ? 0 : 10
   }));
   fixture.downtime = [];
+  fixture.observationCoverage = fixture.production.map((row) => ({
+    stageId: row.stageId,
+    date: row.date,
+    downtimeComplete: true
+  }));
   const baseline = simulate(fixture, { hours: 8, observationHours: 8, interventions: [] });
   assert.equal(baseline.scenario.output, 72);
   assert.equal(baseline.delta, 0);

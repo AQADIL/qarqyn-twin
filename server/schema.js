@@ -49,7 +49,9 @@ export const datasetSchema = z
             plan: number().int(),
             actual: number().int(),
             runtimeHours: number(24).positive(),
-            utilizationPct: number(100)
+            utilizationPct: number(100),
+            periodHours: z.number().finite().min(1).max(24).optional(),
+            regime: text(100).optional()
           })
           .strict()
       )
@@ -62,12 +64,17 @@ export const datasetSchema = z
             ...row,
             equipment: text(100),
             reason: text(500),
-            minutes: number(1440).positive()
+            minutes: number(1440).positive(),
+            classification: z.enum(['planned', 'unplanned', 'unknown']).optional()
           })
           .strict()
       )
       .max(2000),
     plans: z.array(z.object({ id, model: text(100), quantity: number().int() }).strict()).max(200),
+    observationCoverage: z
+      .array(z.object({ stageId: id, date: dateSchema, downtimeComplete: z.boolean() }).strict())
+      .max(2000)
+      .optional(),
     quality: z
       .array(
         z
@@ -126,11 +133,53 @@ export const datasetSchema = z
       if (!data.production.some((r) => r.stageId === s.id))
         ctx.addIssue({ code: 'custom', message: `Нет наблюдений для ${s.name}` });
     }
+    const productionPeriods = new Set(data.production.map((row) => `${row.stageId}:${row.date}`));
+    const productionKeys = new Set();
+    for (const [index, row] of data.production.entries()) {
+      const key = `${row.stageId}:${row.date}:${row.line}`;
+      if (productionKeys.has(key))
+        ctx.addIssue({
+          code: 'custom',
+          path: ['production', index],
+          message:
+            'Повторяется запись участка, линии и даты. Объедините один исходный период или разделите наборы.'
+        });
+      productionKeys.add(key);
+      if (row.periodHours !== undefined && row.runtimeHours > row.periodHours)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['production', index, 'periodHours'],
+          message: 'Рабочее время превышает длительность периода.'
+        });
+    }
+    for (const key of ['quality', 'downtime']) {
+      for (const [index, row] of data[key].entries()) {
+        if (!productionPeriods.has(`${row.stageId}:${row.date}`))
+          ctx.addIssue({
+            code: 'custom',
+            path: [key, index, 'date'],
+            message:
+              'Нет производства этого участка за указанную дату. Не смешивайте несопоставимые периоды.'
+          });
+      }
+    }
+    const coverageKeys = new Set();
+    for (const [index, row] of (data.observationCoverage ?? []).entries()) {
+      const key = `${row.stageId}:${row.date}`;
+      if (!productionPeriods.has(key) || coverageKeys.has(key))
+        ctx.addIssue({
+          code: 'custom',
+          path: ['observationCoverage', index],
+          message: 'Подтверждение должно однозначно соответствовать наблюдаемому участку и дате.'
+        });
+      coverageKeys.add(key);
+    }
   });
 
 export const simulationSchema = z
   .object({
     datasetId: id,
+    date: dateSchema.optional(),
     hours: z.number().min(1).max(744),
     observationHours: z.number().min(1).max(24).default(8),
     interventions: z
@@ -151,12 +200,13 @@ export const scenarioSchema = z
     name: text(100),
     note: z.string().trim().max(2000),
     input: simulationSchema,
-    expectedDatasetVersion: z.number().int().positive().optional()
+    expectedDatasetVersion: z.number().int().positive()
   })
   .strict();
 export const targetPlanSchema = z
   .object({
     datasetId: id,
+    date: dateSchema.optional(),
     hours: z.number().min(1).max(744),
     observationHours: z.number().min(1).max(24).default(8),
     targetGoodOutput: z.number().positive().max(1000000)
@@ -165,16 +215,20 @@ export const targetPlanSchema = z
 export const incidentSchema = z
   .object({
     datasetId: id,
-    stageId: id,
+    stageId: id.nullable().default(null),
     title: text(180),
     description: z.string().trim().max(3000),
     priority: z.enum(['normal', 'high', 'critical']),
-    status: z.enum(['open', 'investigating', 'resolved'])
+    status: z.enum(['open', 'investigating', 'resolved']),
+    assignee: z.string().trim().max(80).default(''),
+    dueDate: dateSchema.nullable().default(null),
+    resolutionNote: z.string().trim().max(3000).default('')
   })
   .strict();
 export const loginSchema = z
   .object({ username: text(80), password: z.string().min(1).max(256) })
   .strict();
+export const ownerCredentialsSchema = loginSchema.extend({ password: z.string().min(16).max(256) });
 export const versionSchema = z.number().int().positive();
 export function parse(schema, value) {
   const result = schema.safeParse(value);

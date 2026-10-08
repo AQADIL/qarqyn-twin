@@ -1,4 +1,5 @@
 import { datasetSchema, parse } from './schema.js';
+import { observationCoverage } from './model-input.js';
 
 const MIN_TRAINING = 3;
 const MIN_SELECTION_FOLDS = 5;
@@ -52,10 +53,44 @@ function series(rows, valueOf) {
     }));
 }
 
+function currentRegime(rows) {
+  const dates = [...new Set(rows.map((row) => row.date))].sort();
+  const signatures = dates.map((date) =>
+    JSON.stringify(
+      rows
+        .filter((row) => row.date === date)
+        .map((row) => [row.line, row.periodHours ?? null, row.regime ?? null])
+        .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+    )
+  );
+  let start = dates.length - 1;
+  while (start > 0 && signatures[start - 1] === signatures.at(-1)) start--;
+  const keptDates = dates.slice(Math.max(0, start));
+  return {
+    dates: keptDates,
+    since: keptDates[0] ?? null,
+    excludedObservationCount: Math.max(0, start),
+    changes: signatures.filter((value, index) => index > 0 && value !== signatures[index - 1])
+      .length,
+    durationDeclared:
+      keptDates.length > 0 &&
+      rows
+        .filter((row) => keptDates.includes(row.date))
+        .every((row) => row.periodHours !== undefined),
+    label:
+      rows
+        .filter((row) => row.date === dates.at(-1))
+        .map((row) => row.regime)
+        .filter(Boolean)
+        .join(' / ') || null
+  };
+}
+
 function metric(points, observedDates, { label, unit, scope, maximum = Infinity }) {
   const values = points.map((point) => point.value);
   const errorSums = Object.fromEntries(METHODS.map((method) => [method, 0]));
   const backtest = [];
+  const orderedPastErrors = [];
   const missingDates = observedDates.filter((date) => !points.some((point) => point.date === date));
   for (let i = MIN_TRAINING; i < points.length; i++) {
     const earlier = values.slice(Math.max(0, i - 5), i);
@@ -64,6 +99,12 @@ function metric(points, observedDates, { label, unit, scope, maximum = Infinity 
       METHODS.map((method) => [method, predict(method, earlier, maximum)])
     );
     const predicted = predictions[selected];
+    const radius =
+      orderedPastErrors.length >= MIN_EMPIRICAL_FOLDS
+        ? orderedPastErrors[Math.ceil(orderedPastErrors.length * 0.9) - 1]
+        : null;
+    const intervalLow = radius === null ? null : bound(predicted - radius, maximum);
+    const intervalHigh = radius === null ? null : bound(predicted + radius, maximum);
     backtest.push({
       date: points[i].date,
       trainThrough: points[i - 1].date,
@@ -74,10 +115,19 @@ function metric(points, observedDates, { label, unit, scope, maximum = Infinity 
       predicted,
       baseline: predictions.persistence,
       absoluteError: Math.abs(values[i] - predicted),
-      baselineAbsoluteError: Math.abs(values[i] - predictions.persistence)
+      baselineAbsoluteError: Math.abs(values[i] - predictions.persistence),
+      intervalLow,
+      intervalHigh,
+      intervalCovered:
+        radius === null ? null : values[i] >= intervalLow && values[i] <= intervalHigh
     });
     // The held-out observation can update selection only after its prediction is recorded.
     for (const method of METHODS) errorSums[method] += Math.abs(values[i] - predictions[method]);
+    const currentError = Math.abs(values[i] - predicted);
+    let errorIndex = 0;
+    while (errorIndex < orderedPastErrors.length && orderedPastErrors[errorIndex] <= currentError)
+      errorIndex++;
+    orderedPastErrors.splice(errorIndex, 0, currentError);
   }
   const method = values.length ? selectMethod(errorSums, backtest.length) : null;
   const estimate = method ? predict(method, values, maximum) : null;
@@ -86,6 +136,16 @@ function metric(points, observedDates, { label, unit, scope, maximum = Infinity 
   const baselineMae = sufficient
     ? average(backtest.map((fold) => fold.baselineAbsoluteError))
     : null;
+  const coveredFolds = backtest.filter((fold) => fold.intervalCovered !== null);
+  const recentMae =
+    backtest.length >= 10 ? average(backtest.slice(-5).map((fold) => fold.absoluteError)) : null;
+  const previousMae =
+    backtest.length >= 10
+      ? average(backtest.slice(-10, -5).map((fold) => fold.absoluteError))
+      : null;
+  const gaps = points
+    .slice(1)
+    .map((point, index) => (Date.parse(point.date) - Date.parse(points[index].date)) / 86400000);
   let range = values.length
     ? {
         low: rounded(Math.min(...values)),
@@ -150,7 +210,43 @@ function metric(points, observedDates, { label, unit, scope, maximum = Infinity 
         baselineAbsoluteError: rounded(fold.baselineAbsoluteError)
       }))
     },
-    sourceIds: unique(points.flatMap((point) => point.sourceIds))
+    sourceIds: unique(points.flatMap((point) => point.sourceIds)),
+    diagnostics: {
+      lastObservedDate: points.at(-1)?.date ?? null,
+      expectedDates: observedDates.length,
+      missingDates: missingDates.length,
+      observedCoveragePct: observedDates.length
+        ? rounded((100 * (observedDates.length - missingDates.length)) / observedDates.length)
+        : null,
+      irregularSpacing: new Set(gaps).size > 1,
+      maxCalendarGapDays: gaps.length ? Math.max(...gaps) : null,
+      spacingNote:
+        'Календарные разрывы не доказывают пропуски рабочих смен; производственный календарь неизвестен.',
+      drift: {
+        status:
+          recentMae === null
+            ? 'insufficient'
+            : recentMae > Math.max(previousMae * 1.5, 1e-9)
+              ? 'watch'
+              : 'no_signal',
+        recentMae: recentMae === null ? null : rounded(recentMae),
+        previousMae: previousMae === null ? null : rounded(previousMae),
+        label:
+          'Сравнение MAE последних пяти проверок с предыдущими пятью; рост более 1,5 раза — эвристический сигнал для проверки, не статистическое доказательство дрейфа.'
+      },
+      intervalCoverage: {
+        evaluatedFolds: coveredFolds.length,
+        coveredFolds: coveredFolds.filter((fold) => fold.intervalCovered).length,
+        empiricalCoveragePct: coveredFolds.length
+          ? rounded(
+              (100 * coveredFolds.filter((fold) => fold.intervalCovered).length) /
+                coveredFolds.length
+            )
+          : null,
+        label:
+          'Проверка покрытия: границы каждого шага построены только по ещё более ранним ошибкам. Это наблюдаемое прошлое покрытие, не гарантия будущего.'
+      }
+    }
   };
 }
 
@@ -158,16 +254,27 @@ export function forecast(input) {
   const data = parse(datasetSchema, input);
   const observedDates = unique(data.production.map((row) => row.date)).sort();
   const stages = data.stages.map((stage) => {
-    const production = data.production.filter((row) => row.stageId === stage.id);
-    const quality = data.quality.filter((row) => row.stageId === stage.id);
-    const downtime = data.downtime.filter((row) => row.stageId === stage.id);
+    const allProduction = data.production.filter((row) => row.stageId === stage.id);
+    const regime = currentRegime(allProduction);
+    const activeDates = new Set(regime.dates);
+    const production = allProduction.filter((row) => activeDates.has(row.date));
+    const quality = data.quality.filter(
+      (row) => row.stageId === stage.id && activeDates.has(row.date)
+    );
+    const downtime = data.downtime.filter(
+      (row) => row.stageId === stage.id && activeDates.has(row.date)
+    );
     const stageDates = unique(production.map((row) => row.date)).sort();
     const sumOf = (key) => (rows) => rows.reduce((total, row) => total + row[key], 0);
-    const output = metric(series(production, sumOf('actual')), observedDates, {
-      label: 'Выпуск',
-      unit: 'шт.',
-      scope: 'Сумма выпуска участка за дату; следующий сопоставимый период с наблюдением'
-    });
+    const output = metric(
+      series(production, sumOf('actual')),
+      regime.since ? observedDates.filter((date) => date >= regime.since) : observedDates,
+      {
+        label: 'Выпуск',
+        unit: 'шт.',
+        scope: 'Сумма выпуска участка за дату; следующий сопоставимый период с наблюдением'
+      }
+    );
     const qualityMetric = metric(
       series(quality, (rows) => (100 * sumOf('defects')(rows)) / sumOf('produced')(rows)),
       stageDates,
@@ -178,11 +285,26 @@ export function forecast(input) {
         scope: 'Доля брака в проверенных операциях за дату, взвешенная по объёму проверок'
       }
     );
-    const downtimeMetric = metric(series(downtime, sumOf('minutes')), stageDates, {
+    const coverage = observationCoverage(data, stage.id);
+    const downtimePoints = series(downtime, sumOf('minutes'));
+    for (const date of stageDates) {
+      if (
+        coverage.confirmedDowntimeDates.includes(date) &&
+        !downtimePoints.some((point) => point.date === date)
+      )
+        downtimePoints.push({
+          date,
+          value: 0,
+          sourceIds: [],
+          coverageEvidence: { stageId: stage.id, date, downtimeComplete: true }
+        });
+    }
+    downtimePoints.sort((left, right) => left.date.localeCompare(right.date));
+    const downtimeMetric = metric(downtimePoints, stageDates, {
       label: 'Зарегистрированный простой',
       unit: 'мин',
       scope:
-        'На период с записью простоя; сумма по оборудованию, включая ТО. Отсутствие записи не означает ноль'
+        'Сумма по оборудованию, включая ТО. Ноль допустим только при явном подтверждении полного журнала за дату. Отсутствие записи не означает ноль'
     });
     const equipment = unique(downtime.map((row) => row.equipment)).map((name) => {
       const value = metric(
@@ -238,6 +360,8 @@ export function forecast(input) {
       stageId: stage.id,
       name: stage.name,
       kind: stage.kind,
+      regime,
+      coverage,
       nextOutput: output.estimate,
       nextDowntimeMinutes: downtimeMetric.estimate,
       nextDefectPct: qualityMetric.estimate,
@@ -271,6 +395,15 @@ export function forecast(input) {
     0
   );
   const dataPriorities = [];
+  const changedRegimes = measured.filter((stage) => stage.regime.excludedObservationCount > 0);
+  if (changedRegimes.length) {
+    dataPriorities.push({
+      id: 'regime-change',
+      priority: 'high',
+      title: 'Проверить смену условий производства',
+      detail: `${changedRegimes.map((stage) => `${stage.name}: с ${stage.regime.since}`).join('; ')}. История до последней смены состава линий, длительности периода или заданного режима исключена из текущего прогноза и проверки. Неуказанные изменения обнаружить нельзя.`
+    });
+  }
   if (backtestedMetrics < metrics.length) {
     dataPriorities.push({
       id: 'history',
@@ -279,13 +412,14 @@ export function forecast(input) {
       detail: `Сейчас ${observedDates.length} дат выпуска. Для первого сравнения методов нужно минимум ${MIN_TRAINING + MIN_SELECTION_FOLDS} наблюдений каждого показателя; это технический минимум, а не доказательство надёжности.`
     });
   }
-  dataPriorities.push({
-    id: 'event-coverage',
-    priority: 'high',
-    title: 'Подтвердить периоды без простоев',
-    detail:
-      'Журнал хранит события, но не подтверждает отсутствие событий. Нужны границы смен, полное покрытие журналом, время начала и конца остановок; иначе нельзя оценить вероятность простоя или простой всей линии.'
-  });
+  if (measured.some((stage) => !stage.coverage.downtimeComplete))
+    dataPriorities.push({
+      id: 'event-coverage',
+      priority: 'high',
+      title: 'Подтвердить периоды без простоев',
+      detail:
+        'Полнота журнала подтверждена не для всех периодов. Подтвердите даты без событий отдельно; добавьте границы смен и время начала и конца остановок для оценки простоя всей линии.'
+    });
   if (missingQualityDates) {
     dataPriorities.push({
       id: 'quality-coverage',
@@ -302,7 +436,7 @@ export function forecast(input) {
       'Подтвердить одинаковую длительность наблюдений и состав линий, разделить плановое ТО и аварии, добавить сменный план и незавершённое производство для проверки ограничений потока.'
   });
   return {
-    version: 'forecast-v1',
+    version: 'forecast-v2',
     observationCount: observedDates.length,
     observedDates,
     periodLabel: 'Следующий сопоставимый период наблюдения',
@@ -339,10 +473,10 @@ export function forecast(input) {
     dataPriorities,
     limitations: [
       'Это статистическая оценка следующего сопоставимого периода, не обученная диагностика отказов оборудования и не подтверждённый эффект внедрения.',
-      'При недостаточной истории используется последнее наблюдение. Отсутствие измерения остаётся неизвестным; нулевые значения не подставляются.',
+      'При недостаточной истории используется последнее наблюдение. Отсутствие измерения остаётся неизвестным. Нулевой простой допустим только при явном подтверждении полноты журнала за дату.',
       'Ряды сгруппированы по датам. Пропущенные даты не интерполируются; прогноз относится к следующему наблюдаемому периоду, а не обязательно к завтрашнему дню.',
-      'Простой прогнозируется условно для периода с зарегистрированным событием. Журнал не позволяет восстановить вероятность события или реальное время остановки линии.',
-      'Смена длительности периода, набора линий или моделей автомобилей может нарушить сопоставимость. Сезонность и производственный календарь не моделируются.',
+      'Без подтверждённых периодов без событий прогноз простоя условен на наличие записи. Вероятность отказа не рассчитывается; пересечение событий и реальное время остановки линии неизвестны.',
+      'История до последней заданной смены длительности периода, состава линий или режима исключается. Незаданные изменения обнаружить нельзя. Сезонность и производственный календарь не моделируются.',
       'Границы по прошлым ошибкам не гарантируют вероятность покрытия будущих значений. При короткой истории показан только диапазон наблюдений.',
       'Минимальный выпуск участка не доказывает узкое место: нужны данные о запасах между участками, параллельных линиях и маршрутах.'
     ]

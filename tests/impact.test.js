@@ -45,7 +45,7 @@ test('economic thresholds derive from full precision flow and explicit assumptio
     unitContribution: 200,
     implementationCost: 1000
   });
-  assert.ok(Math.abs(value.totalGain - 10.3898) < 0.001);
+  assert.ok(Math.abs(value.totalGain - 10.400134680134613) < 0.0001);
   assert.equal(value.economics.breakEvenUnits, 5);
   assert.equal(value.economics.breakEvenPeriods, 2);
   assert.ok(value.economics.netContribution > 1000);
@@ -92,4 +92,52 @@ test('impact rejects nonphysical and oversized inputs before computation', () =>
       (error) => error.status === 422
     );
   }
+});
+
+test('demand caps and recurring costs are reflected in every economic calculation', () => {
+  const value = evaluateImpact(data, {
+    ...request,
+    periods: 4,
+    unitContribution: 200,
+    implementationCost: 1000,
+    recurringCostPerPeriod: 50,
+    maxAdditionalSalesPerPeriod: 1
+  });
+  assert.equal(value.economics.soldAdditionalUnits, 4);
+  assert.equal(value.economics.unsoldAdditionalUnits, 6.4001);
+  assert.equal(value.economics.grossContribution, 800);
+  assert.equal(value.economics.recurringCost, 200);
+  assert.equal(value.economics.netContribution, -400);
+  assert.equal(value.economics.breakEvenPeriods, 7);
+  assert.equal(value.economics.breakEvenUnits, 6);
+  assert.equal(value.economics.roiPct, -33.33);
+  assert.equal(value.sensitivity.at(-1).netContribution, -400);
+  const noMargin = evaluateImpact(data, {
+    ...request,
+    unitContribution: 200,
+    implementationCost: 1000,
+    recurringCostPerPeriod: 200,
+    maxAdditionalSalesPerPeriod: 1
+  });
+  assert.equal(noMargin.economics.breakEvenPeriods, null);
+});
+
+test('sub-cent money is rejected and very small demand never emits non-finite payback', () => {
+  for (const implementationCost of [Number.MIN_VALUE, 0.001, 0.015])
+    assert.throws(
+      () => evaluateImpact(data, { ...request, implementationCost, unitContribution: 200 }),
+      (error) => error.status === 422
+    );
+  const value = evaluateImpact(data, {
+    ...request,
+    implementationCost: 1e12,
+    unitContribution: 0.01,
+    maxAdditionalSalesPerPeriod: Number.MIN_VALUE
+  });
+  assert.equal(value.economics.breakEvenPeriods, null);
+  const visit = (item) => {
+    if (typeof item === 'number') assert.ok(Number.isFinite(item));
+    if (item && typeof item === 'object') Object.values(item).forEach(visit);
+  };
+  visit(value);
 });
