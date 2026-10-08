@@ -8,3 +8,17 @@ test-results/
 .impeccable/
 *.log
 *.sqlite*
+
+# Local preparation files are not part of the published product.
+/work/
+/private/
+/DESIGN.md
+/PRODUCT.md
+/docs/submission/*
+!/docs/submission/QARQYN-pitch.pdf
+/docs/demo-script.md
+/docs/submission.md
+/docs/image-prompts.json
+/docs/QARQYN_Allur_Case_2.*
+/scripts/build-presentation.mjs
+/scripts/export-pitch.mjs
