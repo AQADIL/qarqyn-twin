@@ -9,12 +9,15 @@
   height: 100svh;
   min-height: 0;
   padding: 35px 5.5% 24px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.65fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  column-gap: 20px;
+  align-items: center;
   overflow: clip;
 }
 .scroll-video-heading h2 {
-  font-size: clamp(35px, 4.2vw, 65px);
+  font-size: clamp(35px, 4.2vw, 62px);
   line-height: 1.08;
   letter-spacing: -0.035em;
 }
@@ -31,8 +34,9 @@
   flex: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   position: relative;
+  height: 100%;
 }
 .scroll-video-media video,
 .scroll-video-media img {
@@ -58,6 +62,7 @@
   pointer-events: none;
 }
 .scroll-video-footer {
+  grid-column: 1 / -1;
   padding-top: 18px;
   display: flex;
   justify-content: space-between;
@@ -87,6 +92,9 @@
   height: auto;
   min-height: 0;
   padding-block: 60px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 .scroll-video-static .scroll-video-media {
   aspect-ratio: var(--scroll-video-aspect, 16 / 9);
@@ -105,16 +113,19 @@
 .scroll-video-fallback .text-button {
   margin-top: 4px;
 }
-@media (max-width: 700px) {
+@media (max-width: 900px) {
   .scroll-video {
     height: 250svh;
   }
   .scroll-video-sticky {
     min-height: 0;
     padding: 30px 7% 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
   }
   .scroll-video-heading h2 {
-    font-size: 39px;
+    font-size: clamp(35px, 7vw, 48px);
   }
   .scroll-video-heading p {
     font-size: 16px;

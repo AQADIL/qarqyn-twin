@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { motion, useMotionValueEvent, useReducedMotion, useScroll } from 'motion/react';
 import './ScrollVideo.css';
 
-export default function ScrollVideo({ src, poster }) {
+export default function ScrollVideo({ src, fallbackSrc, poster }) {
   const sectionRef = useRef(null);
   const videoRef = useRef(null);
   const stateRef = useRef({
@@ -181,8 +181,8 @@ export default function ScrollVideo({ src, poster }) {
         </header>
         <div className="scroll-video-media" aria-busy={loading && !failed}>
           <video
+            key={src}
             ref={videoRef}
-            src={src}
             poster={poster}
             hidden={failed}
             muted
@@ -202,7 +202,10 @@ export default function ScrollVideo({ src, poster }) {
             }}
             onError={failVideo}
             aria-label="Созданное с ИИ видео сборки автомобиля"
-          />
+          >
+            <source src={src} type={src.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
+            {fallbackSrc && <source src={fallbackSrc} type="video/mp4" />}
+          </video>
           {loading && !failed && (
             <p className="scroll-video-loading" role="status">
               Подготавливаем видеосцену…

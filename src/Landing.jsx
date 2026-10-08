@@ -159,7 +159,11 @@ export default function Landing({ onOpen, onLogin, busy, error }) {
       </header>
       <main id="main" tabIndex={-1}>
         <Hero onOpen={onOpen} busy={busy} error={error} />
-        <ScrollVideo src="/car-assembly.mp4" poster="/car-assembly-video-poster.jpg" />
+        <ScrollVideo
+          src="/car-assembly-final.webm"
+          fallbackSrc="/car-assembly-final.mp4"
+          poster="/car-assembly-final.webp"
+        />
         <Story onOpen={onOpen} busy={busy} />
         <section className="principles" id="principles" aria-labelledby="principles-title">
           <h2 id="principles-title">
