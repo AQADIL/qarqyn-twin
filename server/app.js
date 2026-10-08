@@ -284,15 +284,13 @@ export function createApp(db, config) {
     writer(req);
     const candidate = datasetSchema.safeParse(req.body?.data);
     if (!candidate.success)
-      return res
-        .status(422)
-        .json({
-          error: 'Исправьте ошибки в наборе данных',
-          issues: candidate.error.issues.map((issue) => ({
-            path: issue.path.join('.'),
-            message: issue.message
-          }))
-        });
+      return res.status(422).json({
+        error: 'Исправьте ошибки в наборе данных',
+        issues: candidate.error.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          message: issue.message
+        }))
+      });
     res.json({
       valid: true,
       summary: Object.fromEntries(
@@ -469,10 +467,12 @@ export function createApp(db, config) {
       req.body
     );
     res.json(
-      optimize(dataset(req, body.datasetId).data, body.hours, body.observationHours, body.date).map((r) => ({
-        ...r,
-        input: { ...r.input, datasetId: body.datasetId }
-      }))
+      optimize(dataset(req, body.datasetId).data, body.hours, body.observationHours, body.date).map(
+        (r) => ({
+          ...r,
+          input: { ...r.input, datasetId: body.datasetId }
+        })
+      )
     );
   });
   app.post(
