@@ -1,0 +1,212 @@
+{
+  "name": "Allur · 1–2 октября 2026",
+  "source": {
+    "name": "Тестовые данные организаторов",
+    "kind": "organizer-test",
+    "sha256": "1c46c836dd2907a5c6c9e505c4c751155c6c7fc639ceb191882295a5e2e81e76",
+    "description": "Извлечено из DOCX «Тестовые данные для кейса Цифровой двойник завода». Не является подключением к заводу."
+  },
+  "targets": {
+    "monthlyOutput": 5500,
+    "maxDefectPct": 2,
+    "maxDowntimeMinutes": 60,
+    "targetOeePct": 85,
+    "shiftsPerDay": 2,
+    "hoursPerShift": 8
+  },
+  "stages": [
+    {
+      "id": "warehouse",
+      "name": "Комплектующие",
+      "kind": "buffer"
+    },
+    {
+      "id": "welding",
+      "name": "Сварка",
+      "kind": "production"
+    },
+    {
+      "id": "painting",
+      "name": "Окраска",
+      "kind": "production"
+    },
+    {
+      "id": "assembly",
+      "name": "Сборка",
+      "kind": "production"
+    },
+    {
+      "id": "quality",
+      "name": "Контроль качества",
+      "kind": "inspection"
+    },
+    {
+      "id": "finished",
+      "name": "Готовая продукция",
+      "kind": "buffer"
+    }
+  ],
+  "production": [
+    {
+      "id": "P1",
+      "date": "2026-10-01",
+      "stageId": "welding",
+      "line": "Сварка-1",
+      "plan": 120,
+      "actual": 118,
+      "runtimeHours": 7.8,
+      "utilizationPct": 98.0
+    },
+    {
+      "id": "P2",
+      "date": "2026-10-01",
+      "stageId": "painting",
+      "line": "Окраска-1",
+      "plan": 120,
+      "actual": 115,
+      "runtimeHours": 7.5,
+      "utilizationPct": 94.0
+    },
+    {
+      "id": "P3",
+      "date": "2026-10-01",
+      "stageId": "assembly",
+      "line": "Сборка-1",
+      "plan": 120,
+      "actual": 121,
+      "runtimeHours": 8.0,
+      "utilizationPct": 100.0
+    },
+    {
+      "id": "P4",
+      "date": "2026-10-02",
+      "stageId": "welding",
+      "line": "Сварка-1",
+      "plan": 120,
+      "actual": 111,
+      "runtimeHours": 7.2,
+      "utilizationPct": 91.0
+    },
+    {
+      "id": "P5",
+      "date": "2026-10-02",
+      "stageId": "painting",
+      "line": "Окраска-1",
+      "plan": 120,
+      "actual": 116,
+      "runtimeHours": 7.7,
+      "utilizationPct": 96.0
+    },
+    {
+      "id": "P6",
+      "date": "2026-10-02",
+      "stageId": "assembly",
+      "line": "Сборка-1",
+      "plan": 120,
+      "actual": 119,
+      "runtimeHours": 7.9,
+      "utilizationPct": 99.0
+    }
+  ],
+  "downtime": [
+    {
+      "id": "D1",
+      "date": "2026-10-01",
+      "stageId": "welding",
+      "equipment": "ABB-01",
+      "reason": "Ошибка датчика",
+      "minutes": 25
+    },
+    {
+      "id": "D2",
+      "date": "2026-10-01",
+      "stageId": "painting",
+      "equipment": "Камера-02",
+      "reason": "Замена фильтра",
+      "minutes": 40
+    },
+    {
+      "id": "D3",
+      "date": "2026-10-02",
+      "stageId": "assembly",
+      "equipment": "Конвейер-03",
+      "reason": "Обрыв цепи",
+      "minutes": 55
+    },
+    {
+      "id": "D4",
+      "date": "2026-10-02",
+      "stageId": "welding",
+      "equipment": "ABB-04",
+      "reason": "Плановое ТО",
+      "minutes": 30
+    }
+  ],
+  "plans": [
+    {
+      "id": "M1",
+      "model": "Chevrolet Onix",
+      "quantity": 2500
+    },
+    {
+      "id": "M2",
+      "model": "Chevrolet Cobalt",
+      "quantity": 1800
+    },
+    {
+      "id": "M3",
+      "model": "JAC J7",
+      "quantity": 500
+    }
+  ],
+  "quality": [
+    {
+      "id": "Q1",
+      "date": "2026-10-01",
+      "stageId": "welding",
+      "produced": 118,
+      "defects": 2,
+      "reportedPct": 1.7
+    },
+    {
+      "id": "Q2",
+      "date": "2026-10-01",
+      "stageId": "painting",
+      "produced": 115,
+      "defects": 4,
+      "reportedPct": 3.5
+    },
+    {
+      "id": "Q3",
+      "date": "2026-10-01",
+      "stageId": "assembly",
+      "produced": 121,
+      "defects": 1,
+      "reportedPct": 0.8
+    },
+    {
+      "id": "Q4",
+      "date": "2026-10-02",
+      "stageId": "welding",
+      "produced": 111,
+      "defects": 3,
+      "reportedPct": 2.7
+    },
+    {
+      "id": "Q5",
+      "date": "2026-10-02",
+      "stageId": "painting",
+      "produced": 116,
+      "defects": 6,
+      "reportedPct": 5.2
+    },
+    {
+      "id": "Q6",
+      "date": "2026-10-02",
+      "stageId": "assembly",
+      "produced": 119,
+      "defects": 2,
+      "reportedPct": 1.7
+    }
+  ]
+}
