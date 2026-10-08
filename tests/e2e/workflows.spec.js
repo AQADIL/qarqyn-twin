@@ -182,7 +182,7 @@ test('pilot uses observed data and unconfigured AI clearly disables sending', as
     page.getByRole('heading', { name: 'Нужна проверка сопоставимости', exact: true })
   ).toBeVisible();
   await expect(page.locator('.pilot-results tbody tr')).toHaveCount(4);
-  await navigate(page, 'Помощник');
+  await navigate(page, 'Помощник AI');
   await expect(page.getByLabel('Сообщение помощнику')).toBeDisabled();
   await expect(
     page.getByRole('button', { name: 'Отправить сообщение', exact: true })
