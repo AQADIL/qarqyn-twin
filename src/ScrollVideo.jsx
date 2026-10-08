@@ -8,6 +8,8 @@ export default function ScrollVideo({ src, fallbackSrc, poster }) {
   const stateRef = useRef({
     frame: 0,
     feedbackTimer: 0,
+    loadTimer: 0,
+    usingFallback: false,
     progress: 0,
     ready: false,
     disposed: false,
@@ -30,6 +32,12 @@ export default function ScrollVideo({ src, fallbackSrc, poster }) {
     state.feedbackTimer = 0;
   }, []);
 
+  const clearLoadTimer = useCallback(() => {
+    const state = stateRef.current;
+    if (state.loadTimer) window.clearTimeout(state.loadTimer);
+    state.loadTimer = 0;
+  }, []);
+
   const cancelSeek = useCallback(() => {
     const state = stateRef.current;
     if (state.frame) window.cancelAnimationFrame(state.frame);
@@ -42,11 +50,28 @@ export default function ScrollVideo({ src, fallbackSrc, poster }) {
     state.failed = true;
     cancelSeek();
     clearFeedback();
+    clearLoadTimer();
     if (!state.disposed) {
       setFailed(true);
       setLoading(false);
     }
-  }, [cancelSeek, clearFeedback]);
+  }, [cancelSeek, clearFeedback, clearLoadTimer]);
+
+  const tryFallback = useCallback(() => {
+    const state = stateRef.current;
+    const video = videoRef.current;
+    if (state.disposed || state.failed || !video) return;
+    clearLoadTimer();
+    if (fallbackSrc && !state.usingFallback) {
+      state.usingFallback = true;
+      state.ready = false;
+      cancelSeek();
+      video.src = fallbackSrc;
+      video.load();
+    } else {
+      failVideo();
+    }
+  }, [fallbackSrc, clearLoadTimer, cancelSeek, failVideo]);
 
   const scheduleSeek = useCallback(() => {
     const state = stateRef.current;
@@ -99,8 +124,9 @@ export default function ScrollVideo({ src, fallbackSrc, poster }) {
       state.disposed = true;
       cancelSeek();
       clearFeedback();
+      clearLoadTimer();
     };
-  }, [cancelSeek, clearFeedback]);
+  }, [cancelSeek, clearFeedback, clearLoadTimer]);
 
   useLayoutEffect(() => {
     stateRef.current.manual = manualPlayback;
@@ -120,8 +146,18 @@ export default function ScrollVideo({ src, fallbackSrc, poster }) {
     state.failed = false;
     cancelSeek();
     clearFeedback();
+    clearLoadTimer();
     setFailed(false);
     setLoading(true);
+    // Some decoders advertise WebM support but never produce metadata or an error.
+    // A bounded first-frame wait selects the existing H.264 source without a retry loop.
+    state.loadTimer = window.setTimeout(
+      () => {
+        state.loadTimer = 0;
+        if ((videoRef.current?.readyState ?? 0) < 2) tryFallback();
+      },
+      state.usingFallback ? 15000 : 3500
+    );
   }
 
   function handleReady() {
@@ -133,6 +169,7 @@ export default function ScrollVideo({ src, fallbackSrc, poster }) {
     if (video.videoWidth > 0 && video.videoHeight > 0) {
       setAspectRatio(video.videoWidth / video.videoHeight);
     }
+    if (video.readyState >= 2) clearLoadTimer();
     if (video.readyState >= 2 && !video.seeking) {
       clearFeedback();
       setLoading(false);
@@ -148,13 +185,18 @@ export default function ScrollVideo({ src, fallbackSrc, poster }) {
 
   function handleSeeked() {
     clearFeedback();
-    if ((videoRef.current?.readyState ?? 0) >= 2) setLoading(false);
+    if ((videoRef.current?.readyState ?? 0) >= 2) {
+      clearLoadTimer();
+      setLoading(false);
+    }
     scheduleSeek();
   }
 
   function retryVideo() {
     const video = videoRef.current;
     if (!video) return;
+    stateRef.current.usingFallback = false;
+    video.removeAttribute('src');
     handleLoadStart();
     video.load();
   }
@@ -192,11 +234,27 @@ export default function ScrollVideo({ src, fallbackSrc, poster }) {
             onPlay={() => {
               if (!stateRef.current.manual) videoRef.current?.pause();
             }}
-            onError={failVideo}
+            onError={tryFallback}
             aria-label="Созданное с ИИ видео сборки автомобиля"
           >
-            <source src={src} type={src.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
-            {fallbackSrc && <source src={fallbackSrc} type="video/mp4" />}
+            <source
+              src={src}
+              type={src.endsWith('.webm') ? 'video/webm' : 'video/mp4'}
+              onError={(event) => {
+                event.stopPropagation();
+                if (!stateRef.current.usingFallback) tryFallback();
+              }}
+            />
+            {fallbackSrc && (
+              <source
+                src={fallbackSrc}
+                type="video/mp4"
+                onError={(event) => {
+                  event.stopPropagation();
+                  failVideo();
+                }}
+              />
+            )}
           </video>
           {loading && !failed && (
             <p className="scroll-video-loading" role="status">
