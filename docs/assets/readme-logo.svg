@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="340" height="80" viewBox="0 0 340 80" role="img" aria-labelledby="title">
+  <title id="title">QARQYN</title>
+  <style>
+    .mark { stroke: #a95433; }
+    .wordmark { fill: #242923; }
+    @media (prefers-color-scheme: dark) {
+      .mark { stroke: #e7d9bd; }
+      .wordmark { fill: #f3f0e8; }
+    }
+  </style>
+  <path class="mark" d="M12 52V20h32v32H12m20-12 22 22" fill="none" stroke-width="7"/>
+  <text class="wordmark" x="74" y="53" font-family="Arial,sans-serif" font-size="36" font-weight="700" letter-spacing="7">QARQYN</text>
+</svg>

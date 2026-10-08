@@ -1,6 +1,6 @@
 <a id="top"></a>
 
-<p align="center"><img src="docs/assets/readme-cover.svg" alt="QARQYN — почувствуйте ритм завода. От исходной записи до проверяемого решения." width="1200"></p>
+<p align="center"><img src="docs/assets/readme-logo.svg" alt="QARQYN" width="320"></p>
 
 <p align="center">Цифровой двойник производственного потока.<br>От записи о потере до решения, которое можно проверить.</p>
 
